@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json yarn.lock ./
+
+# Install ALL dependencies (including dev dependencies)
+RUN yarn install --frozen-lockfile
+
+# We don't need to COPY source files here since they'll 
+# be mounted as a volume in docker-compose.yml
+
+EXPOSE 4000
+
+# For development mode
+CMD ["yarn", "dev"]

@@ -1,0 +1,7 @@
+**/node_modules
+**/.env
+**/.next
+**/logs
+frontend/.next
+backend/tests/Flashpost-tests
+.DS_Store
