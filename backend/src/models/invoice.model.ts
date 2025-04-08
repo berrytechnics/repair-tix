@@ -46,31 +46,32 @@ export interface InvoiceAttributes {
   notes?: string;
   paymentMethod?: string;
   paymentReference?: string;
+  paymentNotes?: string;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
 }
 
 // Some attributes are optional in `Invoice.build` and `Invoice.create` calls
-export interface InvoiceCreationAttributes
-  extends Optional<
-    InvoiceAttributes,
-    | "id"
-    | "invoiceNumber"
-    | "ticketId"
-    | "status"
-    | "issueDate"
-    | "dueDate"
-    | "paidDate"
-    | "subtotal"
-    | "taxRate"
-    | "taxAmount"
-    | "discountAmount"
-    | "totalAmount"
-    | "notes"
-    | "paymentMethod"
-    | "paymentReference"
-  > {}
+export type InvoiceCreationAttributes = Optional<
+  InvoiceAttributes,
+  | "id"
+  | "invoiceNumber"
+  | "ticketId"
+  | "status"
+  | "issueDate"
+  | "dueDate"
+  | "paidDate"
+  | "subtotal"
+  | "taxRate"
+  | "taxAmount"
+  | "discountAmount"
+  | "totalAmount"
+  | "notes"
+  | "paymentMethod"
+  | "paymentReference"
+  | "paymentNotes"
+>;
 
 export class InvoiceModel
   extends Model<InvoiceAttributes, InvoiceCreationAttributes>
@@ -92,6 +93,7 @@ export class InvoiceModel
   public notes?: string;
   public paymentMethod?: string;
   public paymentReference?: string;
+  public paymentNotes?: string;
 
   // timestamps!
   public readonly createdAt!: Date;
@@ -225,6 +227,10 @@ export default function (sequelize: Sequelize): typeof InvoiceModel {
       },
       paymentReference: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      paymentNotes: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
     },

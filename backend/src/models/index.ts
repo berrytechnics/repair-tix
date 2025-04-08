@@ -1,3 +1,4 @@
+// src/models/index.ts
 import { Sequelize } from "sequelize";
 import config from "../config/database";
 import logger from "../utils/logger";

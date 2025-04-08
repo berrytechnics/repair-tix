@@ -1,20 +1,20 @@
-import express, { Request, Response, Router } from "express";
+import express, { Router } from "express";
 import { body } from "express-validator";
 import { requireAuth } from "../middlewares/required-auth";
 import { validateRequest } from "../middlewares/validate-request";
 
-// Import controllers (these will need to be created)
-// import {
-//   createInvoice,
-//   getInvoices,
-//   getInvoiceById,
-//   updateInvoice,
-//   deleteInvoice,
-//   addInvoiceItem,
-//   updateInvoiceItem,
-//   removeInvoiceItem,
-//   markInvoiceAsPaid
-// } from '../controllers/invoice.controller';
+// Import controllers
+import {
+  addInvoiceItem,
+  createInvoice,
+  deleteInvoice,
+  getInvoiceById,
+  getInvoices,
+  markInvoiceAsPaid,
+  removeInvoiceItem,
+  updateInvoice,
+  updateInvoiceItem,
+} from "../controllers/invoice.controller";
 
 const router: Router = express.Router();
 
@@ -23,26 +23,14 @@ const router: Router = express.Router();
  * @desc Get all invoices
  * @access Private
  */
-router.get("/", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: "Get all invoices - To be implemented",
-  });
-});
+router.get("/", requireAuth, getInvoices);
 
 /**
  * @route GET /api/invoices/:id
  * @desc Get invoice by ID
  * @access Private
  */
-router.get("/:id", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: `Get invoice with ID: ${req.params.id} - To be implemented`,
-  });
-});
+router.get("/:id", requireAuth, getInvoiceById);
 
 /**
  * @route POST /api/invoices
@@ -81,14 +69,7 @@ router.post(
     body("notes").optional(),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(201).json({
-      success: true,
-      message: "Create new invoice - To be implemented",
-      data: req.body,
-    });
-  }
+  createInvoice
 );
 
 /**
@@ -137,14 +118,7 @@ router.put(
       ),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(200).json({
-      success: true,
-      message: `Update invoice with ID: ${req.params.id} - To be implemented`,
-      data: req.body,
-    });
-  }
+  updateInvoice
 );
 
 /**
@@ -152,13 +126,7 @@ router.put(
  * @desc Delete invoice (soft delete)
  * @access Private
  */
-router.delete("/:id", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: `Delete invoice with ID: ${req.params.id} - To be implemented`,
-  });
-});
+router.delete("/:id", requireAuth, deleteInvoice);
 
 /**
  * @route POST /api/invoices/:id/items
@@ -187,14 +155,7 @@ router.post(
       .withMessage("Type must be one of: part, service, other"),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(201).json({
-      success: true,
-      message: `Add item to invoice with ID: ${req.params.id} - To be implemented`,
-      data: req.body,
-    });
-  }
+  addInvoiceItem
 );
 
 /**
@@ -232,14 +193,7 @@ router.put(
       .withMessage("Type must be one of: part, service, other"),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(200).json({
-      success: true,
-      message: `Update item ${req.params.itemId} in invoice with ID: ${req.params.id} - To be implemented`,
-      data: req.body,
-    });
-  }
+  updateInvoiceItem
 );
 
 /**
@@ -247,13 +201,7 @@ router.put(
  * @desc Remove item from invoice
  * @access Private
  */
-router.delete("/:id/items/:itemId", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: `Remove item ${req.params.itemId} from invoice with ID: ${req.params.id} - To be implemented`,
-  });
-});
+router.delete("/:id/items/:itemId", requireAuth, removeInvoiceItem);
 
 /**
  * @route POST /api/invoices/:id/paid
@@ -273,14 +221,7 @@ router.post(
     body("notes").optional(),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(200).json({
-      success: true,
-      message: `Mark invoice with ID: ${req.params.id} as paid - To be implemented`,
-      data: req.body,
-    });
-  }
+  markInvoiceAsPaid
 );
 
 export default router;

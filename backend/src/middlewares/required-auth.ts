@@ -20,6 +20,7 @@ export const requireAuth = async (
   try {
     // Check for token in headers
     const authHeader = req.headers.authorization;
+    console.info({ authHeader });
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new UnauthorizedError("Authorization token is required");

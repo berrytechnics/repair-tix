@@ -30,11 +30,10 @@ export interface InvoiceItemAttributes {
 }
 
 // Some attributes are optional in `InvoiceItem.build` and `InvoiceItem.create` calls
-export interface InvoiceItemCreationAttributes
-  extends Optional<
-    InvoiceItemAttributes,
-    "id" | "inventoryItemId" | "discountPercent" | "discountAmount" | "subtotal"
-  > {}
+export type InvoiceItemCreationAttributes = Optional<
+  InvoiceItemAttributes,
+  "id" | "inventoryItemId" | "discountPercent" | "discountAmount" | "subtotal"
+>;
 
 export class InvoiceItemModel
   extends Model<InvoiceItemAttributes, InvoiceItemCreationAttributes>

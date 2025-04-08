@@ -39,21 +39,20 @@ export interface InventoryItemAttributes {
 }
 
 // Some attributes are optional in `InventoryItem.build` and `InventoryItem.create` calls
-export interface InventoryItemCreationAttributes
-  extends Optional<
-    InventoryItemAttributes,
-    | "id"
-    | "description"
-    | "subcategory"
-    | "brand"
-    | "model"
-    | "compatibleWith"
-    | "reorderLevel"
-    | "location"
-    | "supplier"
-    | "supplierPartNumber"
-    | "isActive"
-  > {}
+export type InventoryItemCreationAttributes = Optional<
+  InventoryItemAttributes,
+  | "id"
+  | "description"
+  | "subcategory"
+  | "brand"
+  | "model"
+  | "compatibleWith"
+  | "reorderLevel"
+  | "location"
+  | "supplier"
+  | "supplierPartNumber"
+  | "isActive"
+>;
 
 export class InventoryItemModel
   extends Model<InventoryItemAttributes, InventoryItemCreationAttributes>

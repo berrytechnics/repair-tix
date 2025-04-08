@@ -115,6 +115,127 @@ repair-business-manager/
 
 ## Development
 
+### Repair Business Manager CLI
+
+This CLI tool helps manage your Electronics Repair Business Management System, handling tasks like running the application, managing Docker, and running database migrations.
+
+#### Installation
+
+From the project root directory:
+
+```bash
+# Install dependencies
+npm install
+
+# Make the CLI executable
+chmod +x cli.js
+
+# Install the CLI globally (optional)
+npm install -g .
+```
+
+#### Usage
+
+After installation, you can use the CLI in two ways:
+
+##### 1. Using npm scripts
+
+```bash
+# Run the application
+npm run run
+
+# Clean up Docker resources
+npm run cleanup
+
+# Run database migrations
+npm run migrate
+
+# Undo the last migration
+npm run migrate:undo
+
+# Undo all migrations
+npm run migrate:undo:all
+
+# Seed the database
+npm run seed
+
+# Undo all seeds
+npm run seed:undo
+
+# View logs
+npm run logs
+
+# Follow logs
+npm run logs:follow
+
+# View only backend logs
+npm run logs:backend
+
+# View only database logs
+npm run logs:db
+
+# View only frontend logs
+npm run logs:web
+```
+
+##### 2. Using the command directly (if installed globally)
+
+```bash
+# View available commands
+repair --help
+
+# Run the application
+repair run
+
+# Clean up Docker resources
+repair cleanup
+
+# Run database migrations
+repair migrate
+
+# Undo the last migration
+repair migrate:undo
+
+# Undo all migrations
+repair migrate:undo --all
+
+# Seed the database
+repair seed
+
+# Undo all seeds
+repair seed --undo
+
+# View logs
+repair logs
+
+# Follow logs
+repair logs --follow
+
+# View only backend logs
+repair logs --backend
+
+# View only database logs
+repair logs --db
+
+# View only frontend logs
+repair logs --web
+```
+
+#### Available Commands
+
+- `run` - Build and run the application with Docker
+- `cleanup` - Clean up Docker resources
+- `migrate` - Run database migrations
+- `migrate:undo` - Undo the last database migration
+- `seed` - Seed the database with initial data
+- `logs` - Show Docker logs
+
+Each command has additional options that can be viewed with the `--help` flag:
+
+```bash
+repair <command> --help
+```
+
 ### Backend Development
 
 ```bash

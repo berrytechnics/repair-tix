@@ -1,16 +1,20 @@
-import express, { Request, Response, Router } from "express";
+import express, { Router } from "express";
 import { body } from "express-validator";
 import { requireAuth } from "../middlewares/required-auth";
 import { validateRequest } from "../middlewares/validate-request";
 
-// Import controllers (these will need to be created)
-// import {
-//   createInventoryItem,
-//   getInventoryItems,
-//   getInventoryItemById,
-//   updateInventoryItem,
-//   deleteInventoryItem
-// } from '../controllers/inventory.controller';
+// Import controllers
+import {
+  adjustInventoryQuantity,
+  createInventoryItem,
+  deleteInventoryItem,
+  getInventoryItemById,
+  getInventoryItems,
+  getInventoryStats,
+  getLowStockItems,
+  searchInventoryItems,
+  updateInventoryItem,
+} from "../controllers/inventory.controller";
 
 const router: Router = express.Router();
 
@@ -19,26 +23,35 @@ const router: Router = express.Router();
  * @desc Get all inventory items
  * @access Private
  */
-router.get("/", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: "Get all inventory items - To be implemented",
-  });
-});
+router.get("/", requireAuth, getInventoryItems);
+
+/**
+ * @route GET /api/inventory/low-stock
+ * @desc Get low stock inventory items
+ * @access Private
+ */
+router.get("/low-stock", requireAuth, getLowStockItems);
+
+/**
+ * @route GET /api/inventory/search
+ * @desc Search inventory items
+ * @access Private
+ */
+router.get("/search", requireAuth, searchInventoryItems);
+
+/**
+ * @route GET /api/inventory/stats
+ * @desc Get inventory statistics
+ * @access Private
+ */
+router.get("/stats", requireAuth, getInventoryStats);
 
 /**
  * @route GET /api/inventory/:id
  * @desc Get inventory item by ID
  * @access Private
  */
-router.get("/:id", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: `Get inventory item with ID: ${req.params.id} - To be implemented`,
-  });
-});
+router.get("/:id", requireAuth, getInventoryItemById);
 
 /**
  * @route POST /api/inventory
@@ -76,14 +89,7 @@ router.post(
     body("supplierPartNumber").optional(),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(201).json({
-      success: true,
-      message: "Create new inventory item - To be implemented",
-      data: req.body,
-    });
-  }
+  createInventoryItem
 );
 
 /**
@@ -134,14 +140,7 @@ router.put(
       .withMessage("Is active must be a boolean"),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(200).json({
-      success: true,
-      message: `Update inventory item with ID: ${req.params.id} - To be implemented`,
-      data: req.body,
-    });
-  }
+  updateInventoryItem
 );
 
 /**
@@ -149,13 +148,7 @@ router.put(
  * @desc Delete inventory item (soft delete)
  * @access Private
  */
-router.delete("/:id", requireAuth, (req, res) => {
-  // Placeholder - replace with actual controller function
-  res.status(200).json({
-    success: true,
-    message: `Delete inventory item with ID: ${req.params.id} - To be implemented`,
-  });
-});
+router.delete("/:id", requireAuth, deleteInventoryItem);
 
 /**
  * @route POST /api/inventory/:id/adjust
@@ -170,18 +163,7 @@ router.post(
     body("reason").notEmpty().withMessage("Reason is required"),
   ],
   validateRequest,
-  (req: Request, res: Response) => {
-    // Placeholder - replace with actual controller function
-    res.status(200).json({
-      success: true,
-      message: `Adjust inventory for item with ID: ${req.params.id} - To be implemented`,
-      data: {
-        id: req.params.id,
-        adjustment: req.body.adjustment,
-        reason: req.body.reason,
-      },
-    });
-  }
+  adjustInventoryQuantity
 );
 
 export default router;

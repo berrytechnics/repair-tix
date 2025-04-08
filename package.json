@@ -1,0 +1,29 @@
+{
+  "name": "repair-business-manager",
+  "version": "1.0.0",
+  "description": "Electronics Repair Business Management System",
+  "main": "cli.js",
+  "bin": {
+    "repair": "./cli.js"
+  },
+  "scripts": {
+    "run": "node cli.js run",
+    "cleanup": "node cli.js cleanup",
+    "migrate": "node cli.js migrate",
+    "migrate:undo": "node cli.js migrate:undo",
+    "migrate:undo:all": "node cli.js migrate:undo --all",
+    "seed": "node cli.js seed",
+    "seed:undo": "node cli.js seed --undo"
+  },
+  "keywords": [
+    "repair",
+    "electronics",
+    "business",
+    "management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0"
+  }
+}
