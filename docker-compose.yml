@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: repair-db
+    container_name: circuit-sage-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-repair_admin}
@@ -33,7 +33,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: repair-api
+    container_name: circuit-sage-api
     restart: always
     depends_on:
       postgres:
@@ -47,6 +47,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-repair_password}
       DB_NAME: ${POSTGRES_DB:-repair_business}
       JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key}
+      IS_DOCKER: "true"
     ports:
       - "4000:4000"
     volumes:
@@ -63,14 +64,16 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: repair-client
+      dockerfile: Dockerfile.dev
+    container_name: circuit-sage-client
     restart: always
     depends_on:
       - backend
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:4000
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      NEXT_TELEMETRY_DISABLED: "1"
     ports:
       - "3000:3000"
     volumes:
@@ -79,6 +82,11 @@ services:
     networks:
       - repair-network
     command: yarn dev
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
     logging:
       options:
         max-size: "10m"

@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Electronics Repair Business Manager",
+  title: "Circuit Sage",
   description:
     "Manage your repair business - tickets, inventory, invoices and customers",
 };

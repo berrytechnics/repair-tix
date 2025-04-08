@@ -1,0 +1,55 @@
+<svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="250" fill="#232735" rx="10" ry="10" />
+  
+  <!-- Circuit board traces -->
+  <g stroke="#00C49A" stroke-width="2.5" fill="none">
+    <!-- Main circuit paths -->
+    <path d="M 40,125 H 100 V 80 H 160 V 170 H 220 V 60 H 280 V 180 H 360" />
+    <path d="M 40,160 H 70 V 200 H 130 V 120 H 190 V 210 H 250 V 90 H 310 V 160 H 360" />
+    <path d="M 40,90 H 85 V 40 H 145 V 140 H 205 V 30 H 265 V 150 H 325 V 100 H 360" />
+    
+    <!-- Connection nodes -->
+    <circle cx="100" cy="80" r="6" fill="#00C49A" />
+    <circle cx="160" cy="170" r="6" fill="#00C49A" />
+    <circle cx="220" cy="60" r="6" fill="#00C49A" />
+    <circle cx="280" cy="180" r="6" fill="#00C49A" />
+    <circle cx="70" cy="200" r="6" fill="#00C49A" />
+    <circle cx="130" cy="120" r="6" fill="#00C49A" />
+    <circle cx="190" cy="210" r="6" fill="#00C49A" />
+    <circle cx="250" cy="90" r="6" fill="#00C49A" />
+    <circle cx="310" cy="160" r="6" fill="#00C49A" />
+    <circle cx="85" cy="40" r="6" fill="#00C49A" />
+    <circle cx="145" cy="140" r="6" fill="#00C49A" />
+    <circle cx="205" cy="30" r="6" fill="#00C49A" />
+    <circle cx="265" cy="150" r="6" fill="#00C49A" />
+    <circle cx="325" cy="100" r="6" fill="#00C49A" />
+  </g>
+  
+  <!-- Logo center - stylized "CS" with circuit elements -->
+  <g transform="translate(160, 90) scale(0.9)">
+    <!-- C part -->
+    <path d="M 40,40 A 30,30 0 0 0 10,70 A 30,30 0 0 0 40,100 H 60" 
+          stroke="#00E5B0" stroke-width="8" fill="none" stroke-linecap="round" />
+    
+    <!-- S part -->
+    <path d="M 100,40 H 80 A 20,20 0 0 0 80,80 H 100 A 20,20 0 0 1 100,120 H 60" 
+          stroke="#00E5B0" stroke-width="8" fill="none" stroke-linecap="round" />
+          
+    <!-- Circuit accents -->
+    <circle cx="40" cy="40" r="6" fill="#FFFFFF" />
+    <circle cx="100" cy="40" r="6" fill="#FFFFFF" />
+    <circle cx="60" cy="100" r="6" fill="#FFFFFF" />
+    <circle cx="60" cy="120" r="6" fill="#FFFFFF" />
+  </g>
+  
+  <!-- IC chip element -->
+  <rect x="165" y="155" width="70" height="30" rx="2" ry="2" fill="#333" stroke="#555" stroke-width="1" />
+  <line x1="165" y1="165" x2="160" y2="165" stroke="#00C49A" stroke-width="2" />
+  <line x1="165" y1="175" x2="160" y2="175" stroke="#00C49A" stroke-width="2" />
+  <line x1="235" y1="165" x2="240" y2="165" stroke="#00C49A" stroke-width="2" />
+  <line x1="235" y1="175" x2="240" y2="175" stroke="#00C49A" stroke-width="2" />
+  
+  <!-- Text -->
+  <text x="200" y="225" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">CIRCUIT SAGE</text>
+</svg>

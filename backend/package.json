@@ -1,5 +1,5 @@
 {
-  "name": "repair-business-backend",
+  "name": "circuit-sage-backend",
   "version": "1.0.0",
   "description": "Backend for Electronics Repair Business Management System",
   "main": "dist/server.js",

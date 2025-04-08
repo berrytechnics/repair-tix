@@ -1,4 +1,4 @@
-# Electronics Repair Business Management System
+# CircuitSage: Electronics Repair Business Management System
 
 A comprehensive management system for electronics repair businesses with ticketing, inventory management, invoicing, and customer management features.
 
@@ -32,8 +32,8 @@ A comprehensive management system for electronics repair businesses with ticketi
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/berrytechnics/repair-business-manager.git
-cd repair-business-manager
+git clone https://github.com/berrytechnics/circuit-sage.git
+cd circuit-sage
 ```
 
 2. Configure environment variables:
@@ -44,21 +44,19 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-3. Start the application with Docker Compose:
+3. Start the application using the CircuitSage CLI:
 
 ```bash
-docker-compose up
-```
+# Development mode with live logs
+npm run dev
 
-or
-
-```bash
- ./run.sh
+# Production mode
+npm run start
 ```
 
 This will start the PostgreSQL database, backend API, and frontend web application.
 
-1. Access the application:
+4. Access the application:
 
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:4000
@@ -68,7 +66,7 @@ This will start the PostgreSQL database, backend API, and frontend web applicati
 
 After initialization, you can log in with the default admin account:
 
-- Email: admin@repairmanager.com
+- Email: admin@circuitsage.com
 - Password: admin123
 
 **Important**: Change the default admin password after the first login!
@@ -76,7 +74,7 @@ After initialization, you can log in with the default admin account:
 ## Project Structure
 
 ```
-repair-business-manager/
+circuit-sage/
 ├── backend/                # Express TypeScript backend
 │   ├── src/
 │   │   ├── config/         # Configuration files
@@ -89,6 +87,7 @@ repair-business-manager/
 │   │   ├── utils/          # Utility functions
 │   │   └── app.ts          # Express app
 │   ├── Dockerfile          # Backend Docker configuration
+│   ├── Dockerfile.dev      # Development Docker configuration
 │   ├── package.json        # Backend dependencies and scripts
 │   ├── tsconfig.json       # TypeScript configuration
 │   └── ...
@@ -101,6 +100,7 @@ repair-business-manager/
 │   │   ├── styles/         # CSS and styling files
 │   │   └── types/          # TypeScript types and interfaces
 │   ├── Dockerfile          # Frontend Docker configuration
+│   ├── Dockerfile.dev      # Development Docker configuration
 │   ├── package.json        # Frontend dependencies and scripts
 │   ├── tsconfig.json       # TypeScript configuration
 │   └── ...
@@ -108,16 +108,16 @@ repair-business-manager/
 │   ├── init/               # Database initialization scripts
 │   └── migrations/         # Database migration files
 ├── docker-compose.yml      # Docker composition
-├── clean.sh                # Cleanup script
-├── run.sh                  # Run script
+├── cli.js                  # CircuitSage CLI tool
+├── package.json            # Root package.json with CLI commands
 └── README.md               # Project documentation
 ```
 
 ## Development
 
-### Repair Business Manager CLI
+### CircuitSage CLI
 
-This CLI tool helps manage your Electronics Repair Business Management System, handling tasks like running the application, managing Docker, and running database migrations.
+CircuitSage comes with a powerful CLI tool for managing your development and production environments.
 
 #### Installation
 
@@ -127,113 +127,34 @@ From the project root directory:
 # Install dependencies
 npm install
 
-# Make the CLI executable
-chmod +x cli.js
-
-# Install the CLI globally (optional)
-npm install -g .
-```
-
-#### Usage
-
-After installation, you can use the CLI in two ways:
-
-##### 1. Using npm scripts
-
-```bash
-# Run the application
-npm run run
-
-# Clean up Docker resources
-npm run cleanup
-
-# Run database migrations
-npm run migrate
-
-# Undo the last migration
-npm run migrate:undo
-
-# Undo all migrations
-npm run migrate:undo:all
-
-# Seed the database
-npm run seed
-
-# Undo all seeds
-npm run seed:undo
-
-# View logs
-npm run logs
-
-# Follow logs
-npm run logs:follow
-
-# View only backend logs
-npm run logs:backend
-
-# View only database logs
-npm run logs:db
-
-# View only frontend logs
-npm run logs:web
-```
-
-##### 2. Using the command directly (if installed globally)
-
-```bash
-# View available commands
-repair --help
-
-# Run the application
-repair run
-
-# Clean up Docker resources
-repair cleanup
-
-# Run database migrations
-repair migrate
-
-# Undo the last migration
-repair migrate:undo
-
-# Undo all migrations
-repair migrate:undo --all
-
-# Seed the database
-repair seed
-
-# Undo all seeds
-repair seed --undo
-
-# View logs
-repair logs
-
-# Follow logs
-repair logs --follow
-
-# View only backend logs
-repair logs --backend
-
-# View only database logs
-repair logs --db
-
-# View only frontend logs
-repair logs --web
+# Link CLI for global use (optional)
+npm run link
 ```
 
 #### Available Commands
 
-- `run` - Build and run the application with Docker
-- `cleanup` - Clean up Docker resources
-- `migrate` - Run database migrations
-- `migrate:undo` - Undo the last database migration
-- `seed` - Seed the database with initial data
-- `logs` - Show Docker logs
-
-Each command has additional options that can be viewed with the `--help` flag:
+Run `circuit --help` to see all available commands, or use the npm scripts:
 
 ```bash
-repair <command> --help
+# Development Commands
+npm run dev           # Start development environment with live logs
+npm run dev -- -d     # Start development environment in detached mode (no logs)
+
+# Production Commands
+npm run start         # Build and run the application in production mode
+
+# Container Management
+npm run stop          # Stop running containers without removing them
+npm run stop -- -r    # Stop and remove containers
+npm run cleanup       # Clean up Docker resources completely
+
+# Database Commands
+npm run db:migrate          # Run database migrations
+npm run db:migrate:undo     # Undo the last database migration
+npm run db:migrate:reset    # Reset database (undo all migrations, then migrate)
+npm run db:migrate:undo:all # Undo all migrations
+npm run db:seed             # Seed the database with initial data
+npm run db:seed:undo        # Undo all database seeds
 ```
 
 ### Backend Development
@@ -252,18 +173,27 @@ npm install
 npm run dev
 ```
 
-### Database Migrations
+### Docker Development
+
+The project includes optimized Docker configurations for both development and production:
+
+- Development containers include hot reloading, source mapping, and development dependencies
+- Production containers are optimized for performance and security
+
+## Build Optimizations
+
+CircuitSage includes several build optimizations:
+
+- SWC minification for faster builds
+- Bundle analysis tools for optimizing code size
+- Memory optimizations for large projects
+- Docker caching strategies for faster rebuilds
+
+To analyze frontend bundle size:
 
 ```bash
-cd backend
-npx sequelize-cli db:migrate
-```
-
-### Adding Seed Data
-
-```bash
-cd backend
-npx sequelize-cli db:seed:all
+cd frontend
+npm run analyze
 ```
 
 ## API Documentation
@@ -278,6 +208,4 @@ The API documentation is available at http://localhost:4000/api-docs when runnin
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+![CircuitSage Logo](./frontend/public/logo.svg)

@@ -1,19 +1,15 @@
 {
-  "name": "repair-business-manager",
+  "name": "circuit-sage",
   "version": "1.0.0",
   "description": "Electronics Repair Business Management System",
   "main": "cli.js",
   "bin": {
-    "repair": "./cli.js"
+    "circuit-sage": "./cli.js"
   },
   "scripts": {
-    "run": "node cli.js run",
-    "cleanup": "node cli.js cleanup",
-    "migrate": "node cli.js migrate",
-    "migrate:undo": "node cli.js migrate:undo",
-    "migrate:undo:all": "node cli.js migrate:undo --all",
-    "seed": "node cli.js seed",
-    "seed:undo": "node cli.js seed --undo"
+    "link": "chmod +x cli.js && npm link # Link CLI globally to use 'repair-manager' command",
+    "unlink": "npm uninstall -g $(node -e \"console.log(require('./package.json').name)\") # Remove global link",
+    "reinstall": "npm run unlink && npm run link # Unlink and relink the CLI"
   },
   "keywords": [
     "repair",
@@ -21,9 +17,9 @@
     "business",
     "management"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "J. Kyle Berry",
   "dependencies": {
-    "commander": "^11.0.0"
+    "commander": "^11.0.0",
+    "fs-extra": "^11.3.0"
   }
 }

@@ -1,24 +1,43 @@
-# Build stage
-FROM node:18-alpine AS build
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
 WORKDIR /app
-COPY package*.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+
+# Copy package files
+COPY package.json yarn.lock* ./
+
+# Install dependencies with cache optimization
+RUN yarn install --frozen-lockfile --network-timeout 600000
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Set environment variables for build
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# Build application
 RUN yarn build
 
-# Production stage
-FROM node:18-alpine
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
-# Copy only necessary files for development
-COPY --from=build /app/package.json /app/yarn.lock ./
-COPY --from=build /app/public ./public
-COPY --from=build /app/src ./src
-COPY --from=build /app/.next ./.next
-RUN yarn install --production --frozen-lockfile
-EXPOSE 3000
 
-# For production
-# CMD ["yarn", "start"]
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# For development 
-CMD ["yarn", "dev"]
+# Don't run as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
+
+# Copy necessary build outputs
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Run with optimized settings
+CMD ["node", "server.js"]

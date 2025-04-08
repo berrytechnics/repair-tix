@@ -23,21 +23,6 @@ interface DatabaseConfig {
       idle: number;
     };
   };
-  test: {
-    username: string;
-    password: string;
-    database: string;
-    host: string;
-    port: number;
-    dialect: "postgres";
-    logging: boolean;
-    pool: {
-      max: number;
-      min: number;
-      acquire: number;
-      idle: number;
-    };
-  };
   production: {
     username: string;
     password: string;
@@ -61,25 +46,10 @@ const config: DatabaseConfig = {
     password: process.env.DB_PASSWORD || "repair_password",
     database: process.env.DB_NAME || "repair_business",
     // Use 'postgres' as host when in Docker, 'localhost' otherwise
-    host: isDocker ? "postgres" : process.env.DB_HOST || "localhost",
+    host: process.env.DB_HOST || (isDocker ? "postgres" : "localhost"),
     port: parseInt(process.env.DB_PORT || "5432", 10),
     dialect: "postgres",
     logging: process.env.DB_LOGGING === "true",
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
-  },
-  test: {
-    username: process.env.TEST_DB_USER || "test_user",
-    password: process.env.TEST_DB_PASSWORD || "test_password",
-    database: process.env.TEST_DB_NAME || "test_db",
-    host: process.env.TEST_DB_HOST || "localhost",
-    port: parseInt(process.env.TEST_DB_PORT || "5432", 10),
-    dialect: "postgres",
-    logging: false,
     pool: {
       max: 5,
       min: 0,
