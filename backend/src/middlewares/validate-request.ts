@@ -7,12 +7,13 @@ import { ValidationError } from "../types/errors";
  */
 export const validateRequest = (
   req: Request,
-  res: Response,
+  _: Response,
   next: NextFunction
 ): void => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
+    console.error({ errors: errors.array() });
     // Convert errors to a more user-friendly format
     const errorDetails: Record<string, string> = {};
 
