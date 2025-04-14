@@ -10,6 +10,7 @@ import {
   Model,
   Optional,
   Sequelize,
+  UpdateOptions,
 } from "sequelize";
 
 // Import related models types
@@ -129,6 +130,32 @@ export default function (sequelize: Sequelize): typeof UserModel {
         beforeUpdate: async (user: UserModel) => {
           if (user.changed("password")) {
             user.password = await bcrypt.hash(user.password, 10);
+          }
+        },
+        beforeSave: async (user: UserModel) => {
+          // Additional safety check to ensure password is always hashed
+          if (user.changed("password")) {
+            // Check if the password looks unhashed (not a bcrypt hash)
+            if (
+              !user.password.startsWith("$2a$") &&
+              !user.password.startsWith("$2b$")
+            ) {
+              user.password = await bcrypt.hash(user.password, 10);
+            }
+          }
+        },
+        beforeBulkUpdate: async (
+          updateOptions: UpdateOptions<UserAttributes> & {
+            attributes?: { password: string };
+          }
+        ) => {
+          // Handle bulk updates that might include password changes
+          if (updateOptions.attributes?.password) {
+            // Only hash if it doesn't look like a bcrypt hash already
+            updateOptions.attributes.password = await bcrypt.hash(
+              updateOptions.attributes.password,
+              10
+            );
           }
         },
       },
