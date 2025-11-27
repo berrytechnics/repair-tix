@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import logger from "../config/logger";
 import userService, { UserWithoutPassword } from "src/services/user.service";
 
 /** Generate a JWT token with the user. */
@@ -19,7 +20,7 @@ export async function verifyJWTToken(
     const user = await userService.findById(decoded.userId);
     return user;
   } catch (error) {
-    console.error("Invalid JWT token:", error);
+    logger.error("Invalid JWT token:", error);
     return null;
   }
 }

@@ -3,6 +3,7 @@ import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { HttpError, ValidationError } from "./config/errors";
+import logger from "./config/logger";
 import customerRoutes from "./routes/customer.routes";
 import userRoutes from "./routes/user.routes";
 
@@ -32,7 +33,7 @@ app.use((req: Request, res: Response) => {
 
 // Error handling middleware
 app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
+  logger.error(err.stack || err.message);
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";
   
