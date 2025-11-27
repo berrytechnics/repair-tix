@@ -71,7 +71,10 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ message: "Invalid credentials" });
+      expect(response.body).toEqual({
+        success: false,
+        error: { message: "Invalid credentials" },
+      });
       expect(mockedUserService.authenticate).toHaveBeenCalledWith(
         "john@example.com",
         "wrongpassword"
@@ -79,7 +82,7 @@ describe("User Routes", () => {
       expect(mockedGenerateJWTToken).not.toHaveBeenCalled();
     });
 
-    it("should return 401 for missing email (authenticate with undefined)", async () => {
+    it("should return 400 for missing email", async () => {
       mockedUserService.authenticate.mockResolvedValue(null);
 
       const response = await request(app)
@@ -88,11 +91,14 @@ describe("User Routes", () => {
           password: "password123",
         });
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ message: "Invalid credentials" });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        success: false,
+        error: { message: "Email and password are required" },
+      });
     });
 
-    it("should return 401 for missing password (authenticate with undefined)", async () => {
+    it("should return 400 for missing password", async () => {
       mockedUserService.authenticate.mockResolvedValue(null);
 
       const response = await request(app)
@@ -101,8 +107,11 @@ describe("User Routes", () => {
           email: "john@example.com",
         });
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ message: "Invalid credentials" });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        success: false,
+        error: { message: "Email and password are required" },
+      });
     });
   });
 
@@ -130,7 +139,7 @@ describe("User Routes", () => {
           password: "password123",
         });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("user");
       expect(response.body.user.email).toBe("jane@example.com");
       expect(response.body.user.firstName).toBe("Jane");
@@ -155,7 +164,10 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({ message: "Registration failed" });
+      expect(response.body).toEqual({
+        success: false,
+        error: { message: "Registration failed" },
+      });
     });
 
     it("should handle service errors", async () => {
@@ -173,7 +185,10 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe("Internal server error");
+      expect(response.body).toEqual({
+        success: false,
+        error: { message: "Failed to register user" },
+      });
       expect(mockedUserService.create).toHaveBeenCalled();
     });
   });

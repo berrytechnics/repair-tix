@@ -31,7 +31,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handling middleware
-app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
+app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";

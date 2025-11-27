@@ -59,7 +59,7 @@ router.post(
       if (error instanceof HttpError) {
         throw error;
       }
-      throw new BadRequestError("Failed to register user");
+      throw new InternalServerError("Failed to register user");
     }
   })
 );
