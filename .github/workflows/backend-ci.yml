@@ -136,17 +136,21 @@ jobs:
           
           # Run all SQL migrations in order
           echo "Running migrations..."
+          MIGRATION_COUNT=0
           for migration in $(ls database/migrations/*.sql 2>/dev/null | sort); do
             echo "========================================="
-            echo "Running migration: $migration"
+            echo "Running migration: $(basename $migration)"
+            echo "Full path: $migration"
             echo "========================================="
-            if psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -f "$migration" -v ON_ERROR_STOP=1; then
-              echo "✓ Migration $migration completed successfully"
+            if psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -f "$migration" -v ON_ERROR_STOP=1 2>&1; then
+              echo "✓ Migration $(basename $migration) completed successfully"
+              MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
             else
-              echo "✗ Migration $migration failed"
+              echo "✗ Migration $(basename $migration) failed"
               exit 1
             fi
           done
+          echo "Successfully ran $MIGRATION_COUNT migrations"
           echo "All migrations completed successfully"
           
       - name: Verify database schema
