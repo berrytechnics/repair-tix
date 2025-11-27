@@ -6,7 +6,12 @@ import {
   NotFoundError,
 } from "../config/errors";
 import { validateRequest } from "../middlewares/auth.middleware";
+import { validate } from "../middlewares/validation.middleware";
 import customerService from "../services/customer.service";
+import {
+  createCustomerValidation,
+  updateCustomerValidation,
+} from "../validators/customer.validator";
 
 const router = express.Router();
 
@@ -82,6 +87,7 @@ router.get(
 // POST /customers - Create new customer
 router.post(
   "/",
+  validate(createCustomerValidation),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const customer = await customerService.create(req.body);
@@ -98,6 +104,7 @@ router.post(
 // PUT /customers/:id - Update customer
 router.put(
   "/:id",
+  validate(updateCustomerValidation),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     try {

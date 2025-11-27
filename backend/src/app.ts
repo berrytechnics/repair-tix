@@ -2,7 +2,7 @@ import cors from "cors";
 import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-import { HttpError } from "./config/errors";
+import { HttpError, ValidationError } from "./config/errors";
 import customerRoutes from "./routes/customer.routes";
 import userRoutes from "./routes/user.routes";
 
@@ -36,13 +36,23 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";
   
-  res.status(statusCode).json({
+  const errorResponse: {
+    success: false;
+    error: {
+      message: string;
+      errors?: Record<string, string>;
+      stack?: string;
+    };
+  } = {
     success: false,
     error: {
       message,
+      ...(err instanceof ValidationError && { errors: err.errors }),
       ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
     },
-  });
+  };
+  
+  res.status(statusCode).json(errorResponse);
 });
 
 export default app;

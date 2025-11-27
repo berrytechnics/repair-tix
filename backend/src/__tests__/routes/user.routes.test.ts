@@ -92,10 +92,10 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        success: false,
-        error: { message: "Email and password are required" },
-      });
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Validation failed");
+      expect(response.body.error.errors).toHaveProperty("email");
+      expect(response.body.error.errors.email).toBe("Email is required");
     });
 
     it("should return 400 for missing password", async () => {
@@ -108,10 +108,10 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        success: false,
-        error: { message: "Email and password are required" },
-      });
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Validation failed");
+      expect(response.body.error.errors).toHaveProperty("password");
+      expect(response.body.error.errors.password).toBe("Password is required");
     });
   });
 
@@ -136,7 +136,7 @@ describe("User Routes", () => {
           firstName: "Jane",
           lastName: "Smith",
           email: "jane@example.com",
-          password: "password123",
+          password: "Password123",
         });
 
       expect(response.status).toBe(201);
@@ -147,7 +147,7 @@ describe("User Routes", () => {
         firstName: "Jane",
         lastName: "Smith",
         email: "jane@example.com",
-        password: "password123",
+        password: "Password123",
       });
     });
 
@@ -160,7 +160,7 @@ describe("User Routes", () => {
           firstName: "Jane",
           lastName: "Smith",
           email: "jane@example.com",
-          password: "password123",
+          password: "Password123",
         });
 
       expect(response.status).toBe(400);
@@ -181,7 +181,7 @@ describe("User Routes", () => {
           firstName: "Jane",
           lastName: "Smith",
           email: "jane@example.com",
-          password: "password123",
+          password: "Password123",
         });
 
       expect(response.status).toBe(500);

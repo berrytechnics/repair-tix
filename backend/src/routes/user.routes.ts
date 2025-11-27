@@ -5,8 +5,10 @@ import {
   InternalServerError,
   UnauthorizedError,
 } from "../config/errors";
+import { validate } from "../middlewares/validation.middleware";
 import userService from "../services/user.service";
 import { generateNewJWTToken } from "../utils/auth";
+import { loginValidation, registerValidation } from "../validators/user.validator";
 
 const router = express.Router();
 
@@ -25,11 +27,9 @@ router.get("/", (req: Request, res: Response) => {
 
 router.post(
   "/login",
+  validate(loginValidation),
   asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
-    if (!email || !password) {
-      throw new BadRequestError("Email and password are required");
-    }
     try {
       const user = await userService.authenticate(email, password);
       if (!user) {
@@ -48,6 +48,7 @@ router.post(
 
 router.post(
   "/register",
+  validate(registerValidation),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const user = await userService.create(req.body);
