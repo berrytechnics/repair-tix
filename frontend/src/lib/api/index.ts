@@ -158,10 +158,30 @@ api.interceptors.response.use(
 
     // Enhance error with user-friendly message
     const friendlyError = new Error(getErrorMessage(error));
-    (friendlyError as any).response = error.response;
-    (friendlyError as any).request = error.request;
-    (friendlyError as any).config = error.config;
-    (friendlyError as any).isAxiosError = true;
+    (friendlyError as Error & {
+      response?: AxiosError["response"];
+      request?: AxiosError["request"];
+      config?: AxiosError["config"];
+      isAxiosError?: boolean;
+    }).response = error.response;
+    (friendlyError as Error & {
+      response?: AxiosError["response"];
+      request?: AxiosError["request"];
+      config?: AxiosError["config"];
+      isAxiosError?: boolean;
+    }).request = error.request;
+    (friendlyError as Error & {
+      response?: AxiosError["response"];
+      request?: AxiosError["request"];
+      config?: AxiosError["config"];
+      isAxiosError?: boolean;
+    }).config = error.config;
+    (friendlyError as Error & {
+      response?: AxiosError["response"];
+      request?: AxiosError["request"];
+      config?: AxiosError["config"];
+      isAxiosError?: boolean;
+    }).isAxiosError = true;
     
     return Promise.reject(friendlyError);
   }

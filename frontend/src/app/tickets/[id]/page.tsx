@@ -10,7 +10,7 @@ import {
   updateTicket,
   updateTicketStatus,
 } from "@/lib/api/ticket.api";
-import { formatPriority, formatStatus, getPriorityColor, getStatusColor } from "@/lib/utils/ticketUtils";
+import { getPriorityColor, getStatusColor } from "@/lib/utils/ticketUtils";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 

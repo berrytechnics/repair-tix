@@ -10,7 +10,6 @@ const nextConfig = {
   swcMinify: true,
   output: "standalone",
   experimental: {
-    parallelServerBuilds: true,
     outputFileTracingRoot: process.cwd(),
     memoryBasedWorkersCount: true,
   },

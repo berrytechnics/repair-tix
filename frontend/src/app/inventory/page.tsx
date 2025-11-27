@@ -35,7 +35,7 @@ export default function InventoryPage() {
               </h3>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                 The inventory management system will allow you to track parts, supplies, and materials.
-                You'll be able to manage stock levels, set low stock alerts, and link inventory items to invoices.
+                You&apos;ll be able to manage stock levels, set low stock alerts, and link inventory items to invoices.
               </p>
               <div className="mt-6">
                 <Link
