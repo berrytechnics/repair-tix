@@ -4,13 +4,15 @@ const withBundleAnalyzer =
     ? require("@next/bundle-analyzer")({ enabled: true })
     : (config) => config;
 
+const path = require("path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: "standalone",
+  // output: "standalone", // Disabled due to build issues - can be re-enabled if needed
   experimental: {
-    outputFileTracingRoot: process.cwd(),
+    outputFileTracingRoot: path.resolve(__dirname),
     memoryBasedWorkersCount: true,
   },
   compiler: {
@@ -23,6 +25,14 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
+  },
+  webpack: (config) => {
+    // Explicitly configure path aliases for webpack
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": path.resolve(__dirname, "src"),
+    };
+    return config;
   },
 };
 
