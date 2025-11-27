@@ -1,5 +1,6 @@
 // src/db/types.ts
 import { ColumnType } from "kysely";
+import { UserWithoutPassword } from "../services/user.service";
 
 // Type helpers
 export type Timestamp = ColumnType<Date, string | undefined, Date | string>;
@@ -148,4 +149,13 @@ export interface UserTable {
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: SoftDelete;
+}
+
+// Extend Express Request interface to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: UserWithoutPassword;
+    }
+  }
 }
