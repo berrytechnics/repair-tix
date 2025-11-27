@@ -11,7 +11,9 @@ export default function RegisterPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [registrationType, setRegistrationType] = useState<"company" | "invitation">("company");
   const [companyName, setCompanyName] = useState("");
+  const [invitationToken, setInvitationToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -40,8 +42,10 @@ export default function RegisterPage() {
         firstName,
         lastName,
         email,
-        companyName,
         password,
+        ...(registrationType === "company"
+          ? { companyName }
+          : { invitationToken }),
       });
       setUser(user);
       router.push("/dashboard");
@@ -149,29 +153,89 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="companyName"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Company name
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Registration type
               </label>
-              <div className="mt-1">
-                <input
-                  id="companyName"
-                  name="companyName"
-                  type="text"
-                  autoComplete="organization"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Enter your company name"
-                  className="block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
-                />
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="registrationType"
+                    value="company"
+                    checked={registrationType === "company"}
+                    onChange={(e) => setRegistrationType(e.target.value as "company" | "invitation")}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Create new company
+                  </span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="registrationType"
+                    value="invitation"
+                    checked={registrationType === "invitation"}
+                    onChange={(e) => setRegistrationType(e.target.value as "company" | "invitation")}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Join existing company with invitation
+                  </span>
+                </label>
               </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                This will create or join a company account
-              </p>
             </div>
+
+            {registrationType === "company" ? (
+              <div>
+                <label
+                  htmlFor="companyName"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Company name
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="companyName"
+                    name="companyName"
+                    type="text"
+                    autoComplete="organization"
+                    required={registrationType === "company"}
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Enter your company name"
+                    className="block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Create a new company account. You will become the admin.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label
+                  htmlFor="invitationToken"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Invitation token
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="invitationToken"
+                    name="invitationToken"
+                    type="text"
+                    required={registrationType === "invitation"}
+                    value={invitationToken}
+                    onChange={(e) => setInvitationToken(e.target.value)}
+                    placeholder="Enter your invitation token"
+                    className="block w-full appearance-none rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Enter the invitation token you received to join an existing company.
+                </p>
+              </div>
+            )}
 
             <div>
               <label

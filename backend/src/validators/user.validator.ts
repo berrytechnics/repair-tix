@@ -72,12 +72,33 @@ export const registerValidation = [
     .isBoolean()
     .withMessage("Active must be a boolean value"),
   body("companyName")
-    .exists()
-    .withMessage("Company name is required")
+    .optional()
     .trim()
     .notEmpty()
-    .withMessage("Company name is required")
+    .withMessage("Company name cannot be empty if provided")
     .isLength({ min: 1, max: 255 })
     .withMessage("Company name must be between 1 and 255 characters"),
+  body("invitationToken")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Invitation token cannot be empty if provided")
+    .isLength({ min: 10 })
+    .withMessage("Invitation token must be at least 10 characters"),
+  // Custom validation: require either companyName or invitationToken (not both, not neither)
+  body().custom((value) => {
+    const hasCompanyName = value.companyName && value.companyName.trim().length > 0;
+    const hasInvitationToken = value.invitationToken && value.invitationToken.trim().length > 0;
+    
+    if (!hasCompanyName && !hasInvitationToken) {
+      throw new Error("Either companyName or invitationToken is required");
+    }
+    
+    if (hasCompanyName && hasInvitationToken) {
+      throw new Error("Cannot provide both companyName and invitationToken");
+    }
+    
+    return true;
+  }),
 ];
 

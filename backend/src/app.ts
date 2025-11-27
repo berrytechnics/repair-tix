@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { HttpError, ValidationError } from "./config/errors";
 import logger from "./config/logger";
 import customerRoutes from "./routes/customer.routes";
+import invitationRoutes from "./routes/invitation.routes";
 import invoiceRoutes from "./routes/invoice.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import userRoutes from "./routes/user.routes";
@@ -25,6 +26,7 @@ app.use("/api/users", userRoutes); // Also mount user routes at /api/users for t
 app.use("/api/customers", customerRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use("/api/invitations", invitationRoutes);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

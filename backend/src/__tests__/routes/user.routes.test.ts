@@ -3,9 +3,10 @@ import app from "../../app";
 import userService from "../../services/user.service";
 import { generateNewJWTToken } from "../../utils/auth";
 
-// Mock the user service and company service
+// Mock the user service, company service, and invitation service
 jest.mock("../../services/user.service");
 jest.mock("../../services/company.service");
+jest.mock("../../services/invitation.service");
 jest.mock("../../utils/auth");
 
 const mockedUserService = userService as jest.Mocked<typeof userService>;
@@ -138,7 +139,7 @@ describe("User Routes", () => {
       deleted_at: null,
     } as any;
 
-    it("should register a new user successfully", async () => {
+    it("should register a new user with company creation (first user becomes admin)", async () => {
       // Mock company service
       const companyService = require("../../services/company.service");
       jest.spyOn(companyService.default, "findBySubdomain").mockResolvedValue(null);
@@ -149,12 +150,16 @@ describe("User Routes", () => {
         plan: "free",
         status: "active",
         settings: {},
-        created_at: new Date(),
-        updated_at: new Date(),
-        deleted_at: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
-      mockedUserService.create.mockResolvedValue(mockNewUser);
+      const adminUser = {
+        ...mockNewUser,
+        role: "admin" as const,
+      };
+
+      mockedUserService.create.mockResolvedValue(adminUser);
       mockedGenerateJWTToken.mockReturnValue("mock-jwt-token");
 
       const response = await request(app)
@@ -176,7 +181,7 @@ describe("User Routes", () => {
             firstName: "Jane",
             lastName: "Smith",
             email: "jane@example.com",
-            role: "technician",
+            role: "admin",
           },
           accessToken: "mock-jwt-token",
           refreshToken: "mock-jwt-token",
@@ -188,9 +193,145 @@ describe("User Routes", () => {
         email: "jane@example.com",
         password: "Password123",
         companyId: MOCK_COMPANY_ID,
-        role: undefined,
+        role: "admin",
       });
-      expect(mockedGenerateJWTToken).toHaveBeenCalledWith(mockNewUser);
+      expect(mockedGenerateJWTToken).toHaveBeenCalledWith(adminUser);
+    });
+
+    it("should register a new user with invitation token", async () => {
+      // Mock invitation service
+      const invitationService = require("../../services/invitation.service");
+      const mockInvitation = {
+        id: "invitation-123",
+        companyId: MOCK_COMPANY_ID,
+        email: "jane@example.com",
+        token: "valid-token-123",
+        role: "technician" as const,
+        invitedBy: "admin-user-id",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      jest.spyOn(invitationService.default, "isTokenValid").mockResolvedValue({
+        valid: true,
+        invitation: mockInvitation,
+      });
+      jest.spyOn(invitationService.default, "markAsUsed").mockResolvedValue(true);
+
+      // Mock company service
+      const companyService = require("../../services/company.service");
+      jest.spyOn(companyService.default, "findById").mockResolvedValue({
+        id: MOCK_COMPANY_ID,
+        name: "Existing Company",
+        subdomain: "existing-company",
+        plan: "free",
+        status: "active",
+        settings: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      mockedUserService.create.mockResolvedValue(mockNewUser);
+      mockedGenerateJWTToken.mockReturnValue("mock-jwt-token");
+
+      const response = await request(app)
+        .post("/api/auth/register")
+        .send({
+          firstName: "Jane",
+          lastName: "Smith",
+          email: "jane@example.com",
+          invitationToken: "valid-token-123",
+          password: "Password123",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toEqual({
+        success: true,
+        data: {
+          user: {
+            id: "user-456",
+            firstName: "Jane",
+            lastName: "Smith",
+            email: "jane@example.com",
+            role: "technician",
+          },
+          accessToken: "mock-jwt-token",
+          refreshToken: "mock-jwt-token",
+        },
+      });
+      expect(invitationService.default.isTokenValid).toHaveBeenCalledWith(
+        "valid-token-123",
+        "jane@example.com"
+      );
+      expect(invitationService.default.markAsUsed).toHaveBeenCalledWith("valid-token-123");
+      expect(mockedUserService.create).toHaveBeenCalledWith({
+        firstName: "Jane",
+        lastName: "Smith",
+        email: "jane@example.com",
+        password: "Password123",
+        companyId: MOCK_COMPANY_ID,
+        role: "technician",
+      });
+    });
+
+    it("should return 400 for invalid invitation token", async () => {
+      // Mock invitation service
+      const invitationService = require("../../services/invitation.service");
+      jest.spyOn(invitationService.default, "isTokenValid").mockResolvedValue({
+        valid: false,
+        invitation: null,
+        error: "Invalid invitation token",
+      });
+
+      const response = await request(app)
+        .post("/api/auth/register")
+        .send({
+          firstName: "Jane",
+          lastName: "Smith",
+          email: "jane@example.com",
+          invitationToken: "invalid-token",
+          password: "Password123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Invalid invitation token");
+    });
+
+    it("should return 400 when neither companyName nor invitationToken provided", async () => {
+      const response = await request(app)
+        .post("/api/auth/register")
+        .send({
+          firstName: "Jane",
+          lastName: "Smith",
+          email: "jane@example.com",
+          password: "Password123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Validation failed");
+      expect(response.body.error.errors).toHaveProperty("_error");
+    });
+
+    it("should return 400 when both companyName and invitationToken provided", async () => {
+      const response = await request(app)
+        .post("/api/auth/register")
+        .send({
+          firstName: "Jane",
+          lastName: "Smith",
+          email: "jane@example.com",
+          companyName: "Test Company",
+          invitationToken: "token-123",
+          password: "Password123",
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Validation failed");
+      expect(response.body.error.errors).toHaveProperty("_error");
     });
 
     it("should return 400 when registration fails", async () => {
@@ -204,9 +345,8 @@ describe("User Routes", () => {
         plan: "free",
         status: "active",
         settings: {},
-        created_at: new Date(),
-        updated_at: new Date(),
-        deleted_at: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       mockedUserService.create.mockResolvedValue(null);
@@ -237,9 +377,8 @@ describe("User Routes", () => {
         plan: "free",
         status: "active",
         settings: {},
-        created_at: new Date(),
-        updated_at: new Date(),
-        deleted_at: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       mockedUserService.create.mockRejectedValue(

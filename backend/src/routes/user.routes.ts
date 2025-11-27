@@ -7,6 +7,7 @@ import { validateRequest } from "../middlewares/auth.middleware";
 import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import companyService from "../services/company.service";
+import invitationService from "../services/invitation.service";
 import userService, { UserWithoutPassword } from "../services/user.service";
 import { asyncHandler } from "../utils/asyncHandler";
 import { generateNewJWTToken } from "../utils/auth";
@@ -62,21 +63,57 @@ router.post(
   "/register",
   validate(registerValidation),
   asyncHandler(async (req: Request, res: Response) => {
-    const { firstName, lastName, email, password, companyName, role } = req.body;
+    const { firstName, lastName, email, password, companyName, invitationToken, role } = req.body;
     
-    // Create or find company
-    let company = await companyService.findBySubdomain(
-      companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-    );
+    let company;
+    let userRole = role || "technician";
     
-    if (!company) {
+    // Path 1: Invitation-based registration (subsequent users)
+    if (invitationToken) {
+      // Validate invitation token
+      const validation = await invitationService.isTokenValid(invitationToken, email);
+      
+      if (!validation.valid || !validation.invitation) {
+        throw new BadRequestError(validation.error || "Invalid invitation");
+      }
+      
+      const invitation = validation.invitation;
+      
+      // Get company from invitation
+      const companyResult = await companyService.findById(invitation.companyId);
+      if (!companyResult) {
+        throw new BadRequestError("Company not found for invitation");
+      }
+      company = companyResult;
+      
+      // Use role from invitation
+      userRole = invitation.role;
+      
+      // Mark invitation as used
+      await invitationService.markAsUsed(invitationToken);
+    }
+    // Path 2: Company creation (first user)
+    else if (companyName) {
+      // Check if company already exists
+      const subdomain = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const existingCompany = await companyService.findBySubdomain(subdomain);
+      
+      if (existingCompany) {
+        throw new BadRequestError("Company with this name already exists. Please use an invitation to join.");
+      }
+      
       // Create new company
       company = await companyService.create({
         name: companyName,
-        subdomain: companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+        subdomain: subdomain,
         plan: "free",
         status: "active",
       });
+      
+      // First user automatically becomes admin
+      userRole = "admin";
+    } else {
+      throw new BadRequestError("Either companyName or invitationToken is required");
     }
     
     // Create user with company_id
@@ -86,7 +123,7 @@ router.post(
       email,
       password,
       companyId: company.id,
-      role,
+      role: userRole,
     });
     
     if (!user) {

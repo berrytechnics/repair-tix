@@ -15,7 +15,12 @@ export const handleValidationErrors = (
     const errorMap: Record<string, string> = {};
     errors.array().forEach((error) => {
       if (error.type === "field") {
-        errorMap[error.path] = error.msg;
+        // Map empty path to "_error" for custom validations (body().custom())
+        const path = error.path && error.path.trim() !== "" ? error.path : "_error";
+        errorMap[path] = error.msg;
+      } else {
+        // Handle non-field errors
+        errorMap["_error"] = error.msg;
       }
     });
     throw new ValidationError("Validation failed", errorMap);

@@ -18,6 +18,7 @@ export interface Database {
   inventory_items: InventoryItemTable;
   invoices: InvoiceTable;
   invoice_items: InvoiceItemTable;
+  invitations: InvitationTable;
   tickets: TicketTable;
   users: UserTable;
 }
@@ -153,6 +154,20 @@ export interface TicketTable {
 }
 
 export type UserRole = "admin" | "technician" | "frontdesk";
+
+export interface InvitationTable {
+  id: UUID;
+  company_id: UUID;
+  email: string;
+  token: string;
+  role: UserRole;
+  invited_by: UUID;
+  expires_at: Timestamp | null;
+  used_at: Timestamp | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
 
 export interface UserTable {
   id: UUID;
