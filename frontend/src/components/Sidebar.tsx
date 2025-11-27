@@ -13,6 +13,7 @@ import {
   Cog6ToothIcon,
   DocumentTextIcon,
   MoonIcon,
+  ShieldCheckIcon,
   ShoppingBagIcon,
   SunIcon,
   TicketIcon,
@@ -51,7 +52,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isLoading, setUser } = useUser();
+  const { user, isLoading, setUser, hasPermission } = useUser();
   const { theme, toggleTheme } = useTheme();
 
   const toggleSidebar = () => setIsOpen(!isOpen);
@@ -68,43 +69,57 @@ export default function Sidebar() {
     return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
   };
 
-  const navigation = [
+  // Define all navigation items with their required permissions
+  const allNavigationItems = [
     {
       href: "/dashboard",
       label: "Dashboard",
       icon: <ChartBarIcon className="w-6 h-6" />,
+      permission: "settings.access", // All authenticated users have this
     },
     {
       href: "/tickets",
       label: "Tickets",
       icon: <TicketIcon className="w-6 h-6" />,
+      permission: "tickets.read",
     },
     {
       href: "/customers",
       label: "Customers",
       icon: <UsersIcon className="w-6 h-6" />,
+      permission: "customers.read",
     },
     {
       href: "/inventory",
       label: "Inventory",
       icon: <ShoppingBagIcon className="w-6 h-6" />,
+      permission: "inventory.read",
     },
     {
       href: "/purchase-orders",
       label: "Purchase Orders",
       icon: <ClipboardDocumentIcon className="w-6 h-6" />,
+      permission: "purchaseOrders.read",
     },
     {
       href: "/invoices",
       label: "Invoices",
       icon: <DocumentTextIcon className="w-6 h-6" />,
+      permission: "invoices.read",
     },
     {
       href: "/settings",
       label: "Settings",
       icon: <Cog6ToothIcon className="w-6 h-6" />,
+      permission: "settings.access",
     },
   ];
+
+  // Filter navigation based on user permissions
+  const navigation = allNavigationItems.filter((item) => {
+    if (!user) return false;
+    return hasPermission(item.permission);
+  });
 
   // If no user is logged in, just display login/register links
   if (!isLoading && !user) {
@@ -229,6 +244,15 @@ export default function Sidebar() {
                 }
               />
             ))}
+            {/* Permissions link (admin only) */}
+            {user && hasPermission("permissions.view") && (
+              <SidebarLink
+                href="/settings/permissions"
+                icon={<ShieldCheckIcon className="w-6 h-6" />}
+                label="Permissions"
+                active={pathname === "/settings/permissions" || pathname.startsWith("/settings/permissions")}
+              />
+            )}
           </nav>
 
           {/* User profile */}

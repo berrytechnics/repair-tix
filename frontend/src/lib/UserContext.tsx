@@ -10,17 +10,24 @@ import React, {
   useState,
 } from "react";
 import { getCurrentUser, User } from "./api";
+import { hasAllPermissions, hasAnyPermission, hasPermission } from "./utils/permissions";
 
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   isLoading: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  hasAllPermissions: (permissions: string[]) => boolean;
 }
 
 const UserContext = createContext<UserContextType>({
   user: null,
   setUser: () => {},
   isLoading: true,
+  hasPermission: () => false,
+  hasAnyPermission: () => false,
+  hasAllPermissions: () => false,
 });
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({
@@ -71,8 +78,33 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
     fetchUser();
   }, [pathname]);
 
+  // Permission checking helpers
+  const hasPermissionCheck = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return hasPermission(user.permissions, permission);
+  };
+
+  const hasAnyPermissionCheck = (permissionList: string[]): boolean => {
+    if (!user || !user.permissions) return false;
+    return hasAnyPermission(user.permissions, permissionList);
+  };
+
+  const hasAllPermissionsCheck = (permissionList: string[]): boolean => {
+    if (!user || !user.permissions) return false;
+    return hasAllPermissions(user.permissions, permissionList);
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser, isLoading }}>
+    <UserContext.Provider
+      value={{
+        user,
+        setUser,
+        isLoading,
+        hasPermission: hasPermissionCheck,
+        hasAnyPermission: hasAnyPermissionCheck,
+        hasAllPermissions: hasAllPermissionsCheck,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

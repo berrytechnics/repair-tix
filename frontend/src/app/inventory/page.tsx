@@ -5,11 +5,13 @@ import {
   InventoryItem,
   searchInventory,
 } from "@/lib/api/inventory.api";
+import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 export default function InventoryPage() {
   const router = useRouter();
+  const { hasPermission } = useUser();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -99,14 +101,16 @@ export default function InventoryPage() {
             Track and manage your parts and supplies
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            onClick={() => router.push("/inventory/new")}
-            className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            New Item
-          </button>
-        </div>
+        {hasPermission("inventory.create") && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={() => router.push("/inventory/new")}
+              className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              New Item
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search */}

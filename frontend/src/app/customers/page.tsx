@@ -5,12 +5,14 @@ import {
   getCustomers,
   searchCustomers,
 } from "@/lib/api/customer.api";
+import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 export default function CustomersListPage() {
   const router = useRouter();
+  const { hasPermission } = useUser();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,15 +97,17 @@ export default function CustomersListPage() {
             Manage customer information and repair history
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => router.push("/customers/new")}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-          >
-            Add Customer
-          </button>
-        </div>
+        {hasPermission("customers.create") && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              type="button"
+              onClick={() => router.push("/customers/new")}
+              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            >
+              Add Customer
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -183,12 +187,14 @@ export default function CustomersListPage() {
             ) : (
               <div>
                 <p>No customers found in the system.</p>
-                <button
-                  onClick={() => router.push("/customers/new")}
-                  className="mt-4 inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                >
-                  Add Your First Customer
-                </button>
+                {hasPermission("customers.create") && (
+                  <button
+                    onClick={() => router.push("/customers/new")}
+                    className="mt-4 inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                  >
+                    Add Your First Customer
+                  </button>
+                )}
               </div>
             )}
           </div>

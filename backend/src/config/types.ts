@@ -21,6 +21,7 @@ export interface Database {
   invitations: InvitationTable;
   purchase_orders: PurchaseOrderTable;
   purchase_order_items: PurchaseOrderItemTable;
+  role_permissions: RolePermissionTable;
   tickets: TicketTable;
   users: UserTable;
 }
@@ -204,6 +205,15 @@ export interface InvitationTable {
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: SoftDelete;
+}
+
+export interface RolePermissionTable {
+  id: UUID;
+  company_id: UUID;
+  role: string;
+  permission: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 export interface UserTable {

@@ -1,12 +1,14 @@
 "use client";
 
 import { Invoice, getInvoices } from "@/lib/api/invoice.api";
+import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
 export default function InvoicesListPage() {
   const router = useRouter();
+  const { hasPermission } = useUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,15 +106,17 @@ export default function InvoicesListPage() {
             Manage and track all your invoices
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => router.push("/invoices/new")}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-          >
-            Create Invoice
-          </button>
-        </div>
+        {hasPermission("invoices.create") && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              type="button"
+              onClick={() => router.push("/invoices/new")}
+              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            >
+              Create Invoice
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -191,12 +195,14 @@ export default function InvoicesListPage() {
             ) : (
               <div>
                 <p>No invoices found in the system.</p>
-                <button
-                  onClick={() => router.push("/invoices/new")}
-                  className="mt-4 inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Create Your First Invoice
-                </button>
+                {hasPermission("invoices.create") && (
+                  <button
+                    onClick={() => router.push("/invoices/new")}
+                    className="mt-4 inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Create Your First Invoice
+                  </button>
+                )}
               </div>
             )}
           </div>

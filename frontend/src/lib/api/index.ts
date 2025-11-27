@@ -34,6 +34,7 @@ export interface User {
   lastName: string;
   email: string;
   role: string;
+  permissions: string[];
 }
 
 export interface LoginCredentials {
@@ -267,6 +268,37 @@ export const getTechnicians = async (): Promise<ApiResponse<Technician[]>> => {
   throw new Error(
     response.data.error?.message || "Failed to fetch technicians"
   );
+};
+
+// Permissions API functions
+export const getPermissionsMatrix = async (): Promise<Record<string, string[]>> => {
+  const response = await api.get<ApiResponse<Record<string, string[]>>>(
+    "/users/permissions/matrix"
+  );
+
+  if (response.data.success && response.data.data) {
+    return response.data.data;
+  }
+
+  throw new Error(
+    response.data.error?.message || "Failed to fetch permissions matrix"
+  );
+};
+
+export const updateRolePermissions = async (
+  role: string,
+  permissions: string[]
+): Promise<void> => {
+  const response = await api.put<ApiResponse<void>>(
+    `/users/permissions/role/${role}`,
+    { permissions }
+  );
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.error?.message || "Failed to update role permissions"
+    );
+  }
 };
 
 // Set token from storage on init

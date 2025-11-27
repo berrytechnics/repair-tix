@@ -1,6 +1,7 @@
 "use client";
 
 import { getTickets } from "@/lib/api/ticket.api";
+import { useUser } from "@/lib/UserContext";
 import { formatPriority, formatStatus, getPriorityColor, getStatusColor } from "@/lib/utils/ticketUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,6 +35,7 @@ interface Ticket {
 
 export default function TicketsListPage() {
   const router = useRouter();
+  const { hasPermission } = useUser();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,15 +107,17 @@ export default function TicketsListPage() {
             Manage and track all repair tickets in the system
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => router.push("/tickets/new")}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-          >
-            Create Ticket
-          </button>
-        </div>
+        {hasPermission("tickets.create") && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              type="button"
+              onClick={() => router.push("/tickets/new")}
+              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            >
+              Create Ticket
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters and Search */}

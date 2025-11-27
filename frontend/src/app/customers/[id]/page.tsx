@@ -9,6 +9,7 @@ import {
 import { Invoice, getInvoicesByCustomer } from "@/lib/api/invoice.api";
 import { Ticket } from "@/lib/api/ticket.api";
 import { formatStatus, getStatusColor } from "@/lib/utils/ticketUtils";
+import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +20,7 @@ export default function CustomerDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
+  const { hasPermission } = useUser();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -189,18 +191,22 @@ export default function CustomerDetailPage({
             >
               Back to List
             </button>
-            <button
-              onClick={() => router.push(`/customers/${customer.id}/edit`)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-            >
-              Edit Customer
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-            >
-              Delete
-            </button>
+            {hasPermission("customers.update") && (
+              <button
+                onClick={() => router.push(`/customers/${customer.id}/edit`)}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              >
+                Edit Customer
+              </button>
+            )}
+            {hasPermission("customers.delete") && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -335,12 +341,13 @@ export default function CustomerDetailPage({
             {/* Quick actions */}
             <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 sm:px-6">
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={() =>
-                    router.push(`/tickets/new?customerId=${customer.id}`)
-                  }
-                  className="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-                >
+                {hasPermission("tickets.create") && (
+                  <button
+                    onClick={() =>
+                      router.push(`/tickets/new?customerId=${customer.id}`)
+                    }
+                    className="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                  >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5 mr-1"
@@ -465,17 +472,19 @@ export default function CustomerDetailPage({
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     No invoices for this customer yet
                   </p>
-                  <button
-                    onClick={() =>
-                      router.push(`/invoices/new?customerId=${customer.id}`)
-                    }
-                    className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
-                  >
-                    Create First Invoice
-                  </button>
+                  {hasPermission("invoices.create") && (
+                    <button
+                      onClick={() =>
+                        router.push(`/invoices/new?customerId=${customer.id}`)
+                      }
+                      className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+                    >
+                      Create First Invoice
+                    </button>
+                  )}
                 </div>
               )}
-              {invoices.length > 0 && (
+              {invoices.length > 0 && hasPermission("invoices.create") && (
                 <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 text-right sm:px-6">
                   <button
                     onClick={() =>
@@ -546,17 +555,19 @@ export default function CustomerDetailPage({
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   No repair tickets for this customer yet
                 </p>
-                <button
-                  onClick={() =>
-                    router.push(`/tickets/new?customerId=${customer.id}`)
-                  }
-                  className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
-                >
-                  Create First Ticket
-                </button>
+                {hasPermission("tickets.create") && (
+                  <button
+                    onClick={() =>
+                      router.push(`/tickets/new?customerId=${customer.id}`)
+                    }
+                    className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500"
+                  >
+                    Create First Ticket
+                  </button>
+                )}
               </div>
             )}
-            {tickets.length > 0 && (
+            {tickets.length > 0 && hasPermission("tickets.create") && (
               <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 text-right sm:px-6">
                 <button
                   onClick={() =>

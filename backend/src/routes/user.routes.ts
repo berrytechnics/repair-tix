@@ -3,7 +3,11 @@ import {
   BadRequestError,
   UnauthorizedError,
 } from "../config/errors";
+import { getPermissionsForRole, getPermissionsMatrix } from "../config/permissions";
+import { UserRole } from "../config/types";
+import permissionService from "../services/permission.service";
 import { validateRequest } from "../middlewares/auth.middleware";
+import { requireAdmin } from "../middlewares/rbac.middleware";
 import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import companyService from "../services/company.service";
@@ -147,17 +151,30 @@ router.post(
 router.get(
   "/me",
   validateRequest,
+  requireTenantContext,
   asyncHandler(async (req: Request, res: Response) => {
     // User is attached to request by validateRequest middleware
     const user = req.user;
     if (!user) {
       throw new UnauthorizedError("User not found");
     }
+    
+    const companyId = req.companyId;
+    if (!companyId) {
+      throw new UnauthorizedError("Company context required");
+    }
+    
     const formattedUser = formatUserForResponse(user);
+    
+    // Get permissions for user's role in their company
+    const permissions = await getPermissionsForRole(user.role, companyId);
     
     res.json({
       success: true,
-      data: formattedUser,
+      data: {
+        ...formattedUser,
+        permissions,
+      },
     });
   })
 );
@@ -174,6 +191,68 @@ router.get(
     res.json({
       success: true,
       data: formattedTechnicians,
+    });
+  })
+);
+
+// GET /api/users/permissions/matrix - Get full permissions matrix for current company (admin only)
+router.get(
+  "/permissions/matrix",
+  validateRequest,
+  requireTenantContext,
+  requireAdmin(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId;
+    if (!companyId) {
+      throw new UnauthorizedError("Company context required");
+    }
+    
+    const matrix = await getPermissionsMatrix(companyId);
+    
+    res.json({
+      success: true,
+      data: matrix,
+    });
+  })
+);
+
+// PUT /api/users/permissions/role/:role - Update permissions for a role in current company (admin only)
+router.put(
+  "/permissions/role/:role",
+  validateRequest,
+  requireTenantContext,
+  requireAdmin(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { role } = req.params;
+    const { permissions } = req.body;
+    const companyId = req.companyId;
+
+    if (!companyId) {
+      throw new UnauthorizedError("Company context required");
+    }
+
+    // Validate role
+    const validRoles: UserRole[] = ["admin", "manager", "technician", "frontdesk"];
+    if (!validRoles.includes(role as UserRole)) {
+      throw new BadRequestError(`Invalid role: ${role}`);
+    }
+
+    // Validate permissions is an array
+    if (!Array.isArray(permissions)) {
+      throw new BadRequestError("Permissions must be an array");
+    }
+
+    // Validate all permissions are strings
+    if (!permissions.every((p) => typeof p === "string")) {
+      throw new BadRequestError("All permissions must be strings");
+    }
+
+    // Update permissions for this company
+    await permissionService.updateRolePermissions(role as UserRole, permissions, companyId);
+
+    res.json({
+      success: true,
+      message: `Permissions updated for role: ${role}`,
     });
   })
 );

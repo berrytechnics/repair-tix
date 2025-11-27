@@ -3,6 +3,7 @@ import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection";
 import { CompanyTable } from "../config/types";
+import permissionService from "./permission.service";
 
 // Input DTOs
 export interface CreateCompanyDto {
@@ -99,6 +100,14 @@ export class CompanyService {
       })
       .returningAll()
       .executeTakeFirstOrThrow();
+
+    // Initialize default permissions for the new company
+    try {
+      await permissionService.initializeCompanyPermissions(company.id);
+    } catch (error) {
+      // Log error but don't fail company creation if permissions table doesn't exist yet
+      console.warn("Failed to initialize permissions for company:", error);
+    }
 
     return toCompany(company);
   }
