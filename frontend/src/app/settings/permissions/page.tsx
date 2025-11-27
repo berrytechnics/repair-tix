@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getPermissionsMatrix, updateRolePermissions } from "@/lib/api";
 import { useUser } from "@/lib/UserContext";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type PermissionsMatrix = Record<string, string[]>;
 
