@@ -120,6 +120,7 @@ jobs:
       - name: Run database migrations
         env:
           PGPASSWORD: ${{ env.DB_PASSWORD }}
+        working-directory: ${{ github.workspace }}
         run: |
           # Install psql client for running migrations
           sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -135,7 +136,6 @@ jobs:
           
           # Run all SQL migrations in order
           echo "Running migrations..."
-          cd ${{ github.workspace }}
           for migration in $(ls database/migrations/*.sql 2>/dev/null | sort); do
             echo "========================================="
             echo "Running migration: $migration"
@@ -152,6 +152,7 @@ jobs:
       - name: Verify database schema
         env:
           PGPASSWORD: ${{ env.DB_PASSWORD }}
+        working-directory: ${{ github.workspace }}
         run: |
           echo "Verifying database tables exist..."
           psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -c "\dt" || exit 1
