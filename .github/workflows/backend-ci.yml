@@ -124,13 +124,20 @@ jobs:
           # Install psql client for running migrations
           sudo apt-get update && sudo apt-get install -y postgresql-client
           # Enable UUID extension (required for migrations)
-          psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" || true
+          echo "Enabling UUID extension..."
+          psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
           # Run all SQL migrations in order
-          for migration in database/migrations/*.sql; do
+          echo "Running migrations..."
+          for migration in $(ls database/migrations/*.sql | sort); do
             echo "Running migration: $migration"
-            psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -f "$migration" || true
+            if psql -h localhost -U ${{ env.DB_USER }} -d ${{ env.DB_NAME }} -f "$migration"; then
+              echo "✓ Migration $migration completed"
+            else
+              echo "✗ Migration $migration failed"
+              exit 1
+            fi
           done
-          echo "Migrations completed"
+          echo "All migrations completed successfully"
 
       - name: Run tests
         run: yarn test
