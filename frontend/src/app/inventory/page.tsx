@@ -1,56 +1,286 @@
 "use client";
 
-import { ShoppingBagIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
+import {
+  getInventory,
+  InventoryItem,
+  searchInventory,
+} from "@/lib/api/inventory.api";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 export default function InventoryPage() {
+  const router = useRouter();
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Function to fetch all inventory items
+  const fetchAllItems = async () => {
+    setIsSearching(true);
+    try {
+      const response = await getInventory();
+      if (response.data) {
+        setItems(response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching inventory:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load inventory. Please try again."
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    setIsLoading(true);
+    fetchAllItems().finally(() => setIsLoading(false));
+  }, []);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!searchQuery.trim()) {
+      // If search is empty, fetch all items
+      fetchAllItems();
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await searchInventory(searchQuery);
+      if (response.data) {
+        setItems(response.data);
+      }
+    } catch (err) {
+      console.error("Error searching inventory:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to search inventory. Please try again."
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Function to handle clearing search
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    fetchAllItems();
+  };
+
+  // Function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  // Check if item is low stock
+  const isLowStock = (item: InventoryItem) => {
+    return item.quantity < item.reorderLevel;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
+      <div className="sm:flex sm:items-center sm:justify-between mb-6">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Inventory Management
+            Inventory
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
             Track and manage your parts and supplies
           </p>
         </div>
+      </div>
 
-        {/* Coming Soon Card */}
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <ShoppingBagIcon className="w-8 h-8 text-gray-400 dark:text-gray-500 mr-3" />
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">
-                Inventory Management Coming Soon
-              </h3>
-            </div>
-          </div>
-          <div className="px-4 py-5 sm:p-6">
-            <div className="text-center py-12">
-              <ShoppingBagIcon className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-                Inventory system is under development
-              </h3>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                The inventory management system will allow you to track parts, supplies, and materials.
-                You&apos;ll be able to manage stock levels, set low stock alerts, and link inventory items to invoices.
-              </p>
-              <div className="mt-6">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+      {/* Search */}
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-6">
+        <form onSubmit={handleSearch} className="sm:flex sm:items-center">
+          <div className="w-full sm:max-w-xs">
+            <label htmlFor="search" className="sr-only">
+              Search inventory
+            </label>
+            <div className="relative rounded-md shadow-sm">
+              <input
+                type="text"
+                name="search"
+                id="search"
+                className="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 pr-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="Search by SKU, name, category, brand, or model"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <svg
+                  className="h-5 w-5 text-gray-400 dark:text-gray-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
                 >
-                  Back to Dashboard
-                </Link>
+                  <path
+                    fillRule="evenodd"
+                    d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </div>
           </div>
+          <div className="mt-3 sm:mt-0 sm:ml-4 sm:flex-shrink-0">
+            <button
+              type="submit"
+              disabled={isSearching}
+              className="block w-full rounded-md border border-transparent bg-blue-600 py-2 px-4 text-center text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto disabled:opacity-75"
+            >
+              {isSearching ? "Searching..." : "Search"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800">
+          {error}
         </div>
+      )}
+
+      {/* Inventory List */}
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+        {isLoading ? (
+          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-3"></div>
+            <p>Loading inventory...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+            {searchQuery ? (
+              <p>
+                No inventory items found matching &quot;{searchQuery}&quot;. Try
+                a different search or{" "}
+                <button
+                  onClick={handleClearSearch}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                >
+                  view all items
+                </button>
+                .
+              </p>
+            ) : (
+              <div>
+                <p>No inventory items found in the system.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {items.map((item) => (
+              <li key={item.id}>
+                <div
+                  className="block hover:bg-gray-50 dark:hover:bg-gray-700/50 px-4 py-4 sm:px-6 cursor-pointer"
+                  onClick={() => {
+                    // Future: navigate to detail page
+                    // router.push(`/inventory/${item.id}`);
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center min-w-0 flex-1">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400 truncate">
+                            {item.sku}
+                          </p>
+                          {!item.isActive && (
+                            <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-800 dark:text-gray-300">
+                              Inactive
+                            </span>
+                          )}
+                          {isLowStock(item) && (
+                            <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-medium text-red-800 dark:text-red-300">
+                              Low Stock
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {item.name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <span>{item.category}</span>
+                          {item.subcategory && (
+                            <>
+                              <span>/</span>
+                              <span>{item.subcategory}</span>
+                            </>
+                          )}
+                          {item.brand && (
+                            <>
+                              <span>•</span>
+                              <span>{item.brand}</span>
+                            </>
+                          )}
+                          {item.model && (
+                            <>
+                              <span>•</span>
+                              <span>{item.model}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex flex-col sm:flex-row sm:items-end gap-2 text-sm">
+                      <div className="text-right">
+                        <p
+                          className={`font-medium ${
+                            isLowStock(item)
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-900 dark:text-gray-100"
+                          }`}
+                        >
+                          Qty: {item.quantity}
+                        </p>
+                        {isLowStock(item) && (
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            Reorder at {item.reorderLevel}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right text-gray-500 dark:text-gray-400">
+                        <p className="text-xs">
+                          Cost: {formatCurrency(item.costPrice)}
+                        </p>
+                        <p className="text-xs">
+                          Price: {formatCurrency(item.sellingPrice)}
+                        </p>
+                      </div>
+                      {item.location && (
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400">
+                          <p>{item.location}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {item.description && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                        {item.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
 }
-
-
