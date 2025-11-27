@@ -41,3 +41,4 @@ CREATE INDEX IF NOT EXISTS idx_purchase_orders_po_number ON purchase_orders(po_n
 CREATE INDEX IF NOT EXISTS idx_purchase_order_items_po_id ON purchase_order_items(purchase_order_id);
 CREATE INDEX IF NOT EXISTS idx_purchase_order_items_inventory_id ON purchase_order_items(inventory_item_id);
 
+

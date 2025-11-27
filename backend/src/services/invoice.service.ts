@@ -3,6 +3,7 @@ import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection";
 import { InvoiceStatus, InvoiceTable, InvoiceItemTable } from "../config/types";
+import { NotFoundError } from "../config/errors";
 
 // Input DTOs
 export interface CreateInvoiceDto {
@@ -374,6 +375,7 @@ export class InvoiceService {
       .where("id", "=", id)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
+      .returningAll()
       .executeTakeFirst();
 
     return !!result;
@@ -401,7 +403,7 @@ export class InvoiceService {
       .executeTakeFirst();
 
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     const taxRate = Number(invoice.tax_rate);
@@ -429,7 +431,7 @@ export class InvoiceService {
     // Validate invoice exists
     const invoice = await this.findById(data.invoiceId, companyId);
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     // Calculate item subtotal
@@ -474,7 +476,7 @@ export class InvoiceService {
     // Validate invoice exists
     const invoice = await this.findById(invoiceId, companyId);
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     // Validate item exists
@@ -486,7 +488,7 @@ export class InvoiceService {
       .executeTakeFirst();
 
     if (!existingItem) {
-      throw new Error("Invoice item not found");
+      throw new NotFoundError("Invoice item not found");
     }
 
     // Build update query
@@ -539,7 +541,7 @@ export class InvoiceService {
     // Validate invoice exists
     const invoice = await this.findById(invoiceId, companyId);
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     // Validate item exists
@@ -551,7 +553,7 @@ export class InvoiceService {
       .executeTakeFirst();
 
     if (!existingItem) {
-      throw new Error("Invoice item not found");
+      throw new NotFoundError("Invoice item not found");
     }
 
     // Delete item
@@ -576,7 +578,7 @@ export class InvoiceService {
     // Validate invoice exists
     const invoice = await this.findById(invoiceId, companyId);
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
 
     // Update invoice
@@ -606,7 +608,7 @@ export class InvoiceService {
     // Validate invoice exists and belongs to company
     const invoice = await this.findById(invoiceId, companyId);
     if (!invoice) {
-      throw new Error("Invoice not found");
+      throw new NotFoundError("Invoice not found");
     }
     const items = await db
       .selectFrom("invoice_items")

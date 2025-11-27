@@ -1,138 +1,95 @@
 import request from "supertest";
 import app from "../../app";
-import customerService from "../../services/customer.service";
-import invoiceService from "../../services/invoice.service";
-import ticketService from "../../services/ticket.service";
-import { verifyJWTToken } from "../../utils/auth";
+import { cleanupTestData } from "../helpers/db.helper";
+import { createTestCompany, createTestCustomer } from "../helpers/seed.helper";
+import { createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
 
-// Mock the customer service, ticket service, invoice service, and auth
-jest.mock("../../services/customer.service");
-jest.mock("../../services/ticket.service");
-jest.mock("../../services/invoice.service");
-jest.mock("../../utils/auth");
+describe("Customer Routes Integration Tests", () => {
+  let testCompanyId: string;
+  let testUserIds: string[] = [];
+  let testCustomerIds: string[] = [];
+  let authToken: string;
+  let adminToken: string;
+  let frontdeskToken: string;
 
-const mockedCustomerService = customerService as jest.Mocked<
-  typeof customerService
->;
-const mockedTicketService = ticketService as jest.Mocked<
-  typeof ticketService
->;
-const mockedInvoiceService = invoiceService as jest.Mocked<
-  typeof invoiceService
->;
-const mockedVerifyJWTToken = verifyJWTToken as jest.MockedFunction<
-  typeof verifyJWTToken
->;
+  beforeEach(async () => {
+    // Create test company
+    testCompanyId = await createTestCompany();
 
-// Mock user for authentication
-const MOCK_COMPANY_ID = "550e8400-e29b-41d4-a716-446655440099";
-const mockUser = {
-  id: "user-123",
-  firstName: "John",
-  lastName: "Doe",
-  email: "john@example.com",
-  role: "technician" as const,
-  active: true,
-  company_id: MOCK_COMPANY_ID,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+    // Create test users with different roles
+    const users = await createTestUsersWithRoles(testCompanyId);
+    testUserIds.push(users.admin.userId, users.frontdesk.userId, users.technician.userId);
+    
+    authToken = users.technician.token;
+    adminToken = users.admin.token;
+    frontdeskToken = users.frontdesk.token;
+  });
 
-const mockAdminUser = {
-  ...mockUser,
-  role: "admin" as const,
-};
-
-const mockFrontdeskUser = {
-  ...mockUser,
-  role: "frontdesk" as const,
-};
-
-describe("Customer Routes", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    // Default: authenticate all requests
-    mockedVerifyJWTToken.mockResolvedValue(mockUser);
+  afterEach(async () => {
+    // Clean up all test data
+    await cleanupTestData({
+      companyIds: [testCompanyId],
+      userIds: testUserIds,
+      customerIds: testCustomerIds,
+    });
+    testUserIds = [];
+    testCustomerIds = [];
   });
 
   describe("GET /api/customers", () => {
     it("should return list of customers", async () => {
-      const mockCustomers = [
-        {
-          id: "customer-1",
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          phone: "123-456-7890",
-          address: null,
-          city: null,
-          state: null,
-          zipCode: null,
-          notes: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: "customer-2",
-          firstName: "Bob",
-          lastName: "Williams",
-          email: "bob@example.com",
-          phone: null,
-          address: null,
-          city: null,
-          state: null,
-          zipCode: null,
-          notes: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      mockedCustomerService.findAll.mockResolvedValue(mockCustomers);
+      // Create test customers
+      const customer1Id = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+        phone: "123-456-7890",
+      });
+      const customer2Id = await createTestCustomer(testCompanyId, {
+        firstName: "Bob",
+        lastName: "Williams",
+        email: "bob@example.com",
+      });
+      testCustomerIds.push(customer1Id, customer2Id);
 
       const response = await request(app)
         .get("/api/customers")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(2);
-      expect(response.body.data[0].email).toBe("alice@example.com");
-      expect(mockedCustomerService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, undefined);
+      
+      const emails = response.body.data.map((c: { email: string }) => c.email);
+      expect(emails).toContain("alice@example.com");
+      expect(emails).toContain("bob@example.com");
     });
 
     it("should filter customers by search query", async () => {
-      const mockCustomers = [
-        {
-          id: "customer-1",
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          phone: null,
-          address: null,
-          city: null,
-          state: null,
-          zipCode: null,
-          notes: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      mockedCustomerService.findAll.mockResolvedValue(mockCustomers);
+      // Create test customers
+      const customer1Id = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      const customer2Id = await createTestCustomer(testCompanyId, {
+        firstName: "Bob",
+        lastName: "Williams",
+        email: "bob@example.com",
+      });
+      testCustomerIds.push(customer1Id, customer2Id);
 
       const response = await request(app)
         .get("/api/customers?query=alice")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(mockedCustomerService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, "alice");
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+      expect(response.body.data[0].email).toBe("alice@example.com");
     });
 
     it("should return 401 without authentication token", async () => {
-      mockedVerifyJWTToken.mockResolvedValue(null);
-
       const response = await request(app).get("/api/customers");
 
       expect(response.status).toBe(401);
@@ -140,11 +97,9 @@ describe("Customer Routes", () => {
     });
 
     it("should return 403 with invalid token", async () => {
-      mockedVerifyJWTToken.mockResolvedValue(null);
-
       const response = await request(app)
         .get("/api/customers")
-        .set("Authorization", "Bearer invalid-token");
+        .set(getAuthHeader("invalid-token"));
 
       expect(response.status).toBe(403);
       expect(response.body.message).toBe("Unauthorized");
@@ -153,38 +108,27 @@ describe("Customer Routes", () => {
 
   describe("GET /api/customers/search", () => {
     it("should search customers with query parameter", async () => {
-      const mockCustomers = [
-        {
-          id: "customer-1",
-          firstName: "Alice",
-          lastName: "Johnson",
-          email: "alice@example.com",
-          phone: null,
-          address: null,
-          city: null,
-          state: null,
-          zipCode: null,
-          notes: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      mockedCustomerService.findAll.mockResolvedValue(mockCustomers);
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
         .get("/api/customers/search?query=alice")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(mockedCustomerService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, "alice");
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+      expect(response.body.data[0].email).toBe("alice@example.com");
     });
 
     it("should return 400 when query is missing", async () => {
       const response = await request(app)
         .get("/api/customers/search")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -194,8 +138,7 @@ describe("Customer Routes", () => {
 
   describe("GET /api/customers/:id", () => {
     it("should return customer by ID", async () => {
-      const mockCustomer = {
-        id: "customer-1",
+      const customerId = await createTestCustomer(testCompanyId, {
         firstName: "Alice",
         lastName: "Johnson",
         email: "alice@example.com",
@@ -205,29 +148,26 @@ describe("Customer Routes", () => {
         state: "NY",
         zipCode: "10001",
         notes: "VIP customer",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedCustomerService.findById.mockResolvedValue(mockCustomer);
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
-        .get("/api/customers/customer-1")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/customers/${customerId}`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.id).toBe("customer-1");
+      expect(response.body.data.id).toBe(customerId);
       expect(response.body.data.email).toBe("alice@example.com");
-      expect(mockedCustomerService.findById).toHaveBeenCalledWith("customer-1", MOCK_COMPANY_ID);
+      expect(response.body.data.phone).toBe("123-456-7890");
+      expect(response.body.data.address).toBe("123 Main St");
     });
 
     it("should return 404 when customer not found", async () => {
-      mockedCustomerService.findById.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .get("/api/customers/non-existent-id")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/customers/${fakeId}`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -249,99 +189,69 @@ describe("Customer Routes", () => {
         notes: "New customer",
       };
 
-      const mockCreatedCustomer = {
-        id: "customer-new",
-        ...newCustomerData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedCustomerService.create.mockResolvedValue(mockCreatedCustomer);
-      mockedVerifyJWTToken.mockResolvedValue(mockFrontdeskUser);
-
       const response = await request(app)
         .post("/api/customers")
-        .set("Authorization", "Bearer valid-token")
+        .set(getAuthHeader(frontdeskToken))
         .send(newCustomerData);
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.data.email).toBe("charlie@example.com");
-      expect(mockedCustomerService.create).toHaveBeenCalledWith(
-        newCustomerData,
-        MOCK_COMPANY_ID
-      );
+      expect(response.body.data.firstName).toBe("Charlie");
+      expect(response.body.data.lastName).toBe("Brown");
+      expect(response.body.data.phone).toBe("555-1234");
+      
+      // Track for cleanup
+      if (response.body.data.id) {
+        testCustomerIds.push(response.body.data.id);
+      }
     });
 
-    it("should handle service errors when creating customer", async () => {
-      mockedCustomerService.create.mockRejectedValue(
-        new Error("Database error")
-      );
-      mockedVerifyJWTToken.mockResolvedValue(mockFrontdeskUser);
-
+    it("should handle validation errors when creating customer", async () => {
       const response = await request(app)
         .post("/api/customers")
-        .set("Authorization", "Bearer valid-token")
+        .set(getAuthHeader(frontdeskToken))
         .send({
+          // Missing required fields
           firstName: "Charlie",
-          lastName: "Brown",
-          email: "charlie@example.com",
         });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toBe("Database error");
     });
   });
 
   describe("PUT /api/customers/:id", () => {
     it("should update customer successfully", async () => {
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+        phone: "123-456-7890",
+      });
+      testCustomerIds.push(customerId);
+
       const updateData = {
         phone: "555-9999",
         notes: "Updated notes",
       };
 
-      const mockUpdatedCustomer = {
-        id: "customer-1",
-        firstName: "Alice",
-        lastName: "Johnson",
-        email: "alice@example.com",
-        phone: "555-9999",
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        notes: "Updated notes",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedCustomerService.update.mockResolvedValue(mockUpdatedCustomer);
-      mockedVerifyJWTToken.mockResolvedValue(mockFrontdeskUser);
-
       const response = await request(app)
-        .put("/api/customers/customer-1")
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/customers/${customerId}`)
+        .set(getAuthHeader(frontdeskToken))
         .send(updateData);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.phone).toBe("555-9999");
       expect(response.body.data.notes).toBe("Updated notes");
-      expect(mockedCustomerService.update).toHaveBeenCalledWith(
-        "customer-1",
-        updateData,
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should return 404 when customer not found for update", async () => {
-      mockedCustomerService.update.mockResolvedValue(null);
-      mockedVerifyJWTToken.mockResolvedValue(mockFrontdeskUser);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .put("/api/customers/non-existent-id")
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/customers/${fakeId}`)
+        .set(getAuthHeader(frontdeskToken))
         .send({ phone: "555-9999" });
 
       expect(response.status).toBe(404);
@@ -352,26 +262,33 @@ describe("Customer Routes", () => {
 
   describe("DELETE /api/customers/:id", () => {
     it("should delete customer successfully", async () => {
-      mockedCustomerService.delete.mockResolvedValue(true);
-      mockedVerifyJWTToken.mockResolvedValue(mockAdminUser);
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
-        .delete("/api/customers/customer-1")
-        .set("Authorization", "Bearer valid-token");
+        .delete(`/api/customers/${customerId}`)
+        .set(getAuthHeader(adminToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.message).toBe("Customer deleted successfully");
-      expect(mockedCustomerService.delete).toHaveBeenCalledWith("customer-1", MOCK_COMPANY_ID);
+
+      // Verify customer is deleted (soft delete)
+      const getResponse = await request(app)
+        .get(`/api/customers/${customerId}`)
+        .set(getAuthHeader(authToken));
+      expect(getResponse.status).toBe(404);
     });
 
     it("should return 404 when customer not found for deletion", async () => {
-      mockedCustomerService.delete.mockResolvedValue(false);
-      mockedVerifyJWTToken.mockResolvedValue(mockAdminUser);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .delete("/api/customers/non-existent-id")
-        .set("Authorization", "Bearer valid-token");
+        .delete(`/api/customers/${fakeId}`)
+        .set(getAuthHeader(adminToken));
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -381,69 +298,56 @@ describe("Customer Routes", () => {
 
   describe("GET /api/customers/:id/tickets", () => {
     it("should return customer tickets", async () => {
-      mockedTicketService.findAll.mockResolvedValue([]);
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
-        .get("/api/customers/customer-1/tickets")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/customers/${customerId}/tickets`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toEqual([]);
-      expect(mockedTicketService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, "customer-1", undefined);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
   });
 
   describe("GET /api/customers/:id/invoices", () => {
     it("should return customer invoices", async () => {
-      const mockInvoices = [
-        {
-          id: "invoice-1",
-          invoiceNumber: "INV-202412-123456",
-          customerId: "customer-1",
-          ticketId: null,
-          status: "issued" as const,
-          issueDate: new Date(),
-          dueDate: null,
-          paidDate: null,
-          subtotal: 100.0,
-          taxRate: 8.5,
-          taxAmount: 8.5,
-          discountAmount: 0,
-          totalAmount: 108.5,
-          notes: null,
-          paymentMethod: null,
-          paymentReference: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      mockedInvoiceService.findAll.mockResolvedValue(mockInvoices);
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
-        .get("/api/customers/customer-1/invoices")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/customers/${customerId}/invoices`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].invoiceNumber).toBe("INV-202412-123456");
-      expect(mockedInvoiceService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, "customer-1", undefined);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
 
     it("should return empty array for customer with no invoices", async () => {
-      mockedInvoiceService.findAll.mockResolvedValue([]);
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
 
       const response = await request(app)
-        .get("/api/customers/customer-1/invoices")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/customers/${customerId}/invoices`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual([]);
-      expect(mockedInvoiceService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, "customer-1", undefined);
     });
   });
 });
-

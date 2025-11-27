@@ -190,6 +190,7 @@ export class CustomerService {
   }
 
   async delete(id: string, companyId: string): Promise<boolean> {
+    // Use returningAll() to get the actual updated row, or null if no row was updated
     const result = await db
       .updateTable("customers")
       .set({
@@ -199,6 +200,7 @@ export class CustomerService {
       .where("id", "=", id)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
+      .returningAll()
       .executeTakeFirst();
 
     return !!result;

@@ -287,6 +287,7 @@ export class TicketService {
       .where("id", "=", id)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
+      .returningAll()
       .executeTakeFirst();
 
     return !!result;

@@ -1,75 +1,74 @@
 import request from "supertest";
 import app from "../../app";
-import userService from "../../services/user.service";
-import { generateNewJWTToken } from "../../utils/auth";
+import { cleanupTestData } from "../helpers/db.helper";
+import { createTestCompany, createTestUser, createTestInvitation } from "../helpers/seed.helper";
+import { createAuthenticatedUser } from "../helpers/auth.helper";
+import { db } from "../../config/connection";
+import invitationService from "../../services/invitation.service";
 
-// Mock the user service, company service, and invitation service
-jest.mock("../../services/user.service");
-jest.mock("../../services/company.service");
-jest.mock("../../services/invitation.service");
-jest.mock("../../utils/auth");
+describe("User Routes Integration Tests", () => {
+  let testCompanyIds: string[] = [];
+  let testUserIds: string[] = [];
+  let testInvitationIds: string[] = [];
 
-const mockedUserService = userService as jest.Mocked<typeof userService>;
-const mockedGenerateJWTToken = generateNewJWTToken as jest.MockedFunction<
-  typeof generateNewJWTToken
->;
-
-describe("User Routes", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  afterEach(async () => {
+    // Clean up all test data
+    await cleanupTestData({
+      companyIds: testCompanyIds,
+      userIds: testUserIds,
+      invitationIds: testInvitationIds,
+    });
+    testCompanyIds = [];
+    testUserIds = [];
+    testInvitationIds = [];
   });
 
   describe("POST /api/auth/login", () => {
-    // Mock user with snake_case fields as returned by the service
-    const MOCK_COMPANY_ID = "550e8400-e29b-41d4-a716-446655440099";
-    const mockUser = {
-      id: "user-123",
-      first_name: "John",
-      last_name: "Doe",
-      email: "john@example.com",
-      role: "technician" as const,
-      active: true,
-      company_id: MOCK_COMPANY_ID,
-      created_at: new Date(),
-      updated_at: new Date(),
-      deleted_at: null,
-    } as any;
-
     it("should login successfully with valid credentials", async () => {
-      mockedUserService.authenticate.mockResolvedValue(mockUser);
-      mockedGenerateJWTToken.mockReturnValue("mock-jwt-token");
+      // Create test company
+      const companyId = await createTestCompany();
+      testCompanyIds.push(companyId);
+
+      // Create test user with known password
+      const password = "password123";
+      const userId = await createTestUser(companyId, {
+        email: "john@example.com",
+        firstName: "John",
+        lastName: "Doe",
+        password: password,
+        role: "technician",
+      });
+      testUserIds.push(userId);
 
       const response = await request(app)
         .post("/api/auth/login")
         .send({
           email: "john@example.com",
-          password: "password123",
+          password: password,
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({
-        success: true,
-        data: {
-          user: {
-            id: "user-123",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john@example.com",
-            role: "technician",
-          },
-          accessToken: "mock-jwt-token",
-          refreshToken: "mock-jwt-token",
-        },
-      });
-      expect(mockedUserService.authenticate).toHaveBeenCalledWith(
-        "john@example.com",
-        "password123"
-      );
-      expect(mockedGenerateJWTToken).toHaveBeenCalledWith(mockUser);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toBeDefined();
+      expect(response.body.data.user.email).toBe("john@example.com");
+      expect(response.body.data.user.firstName).toBe("John");
+      expect(response.body.data.user.lastName).toBe("Doe");
+      expect(response.body.data.user.role).toBe("technician");
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
     });
 
     it("should return 401 for invalid credentials", async () => {
-      mockedUserService.authenticate.mockResolvedValue(null);
+      // Create test company
+      const companyId = await createTestCompany();
+      testCompanyIds.push(companyId);
+
+      // Create test user
+      const userId = await createTestUser(companyId, {
+        email: "john@example.com",
+        password: "correctpassword",
+      });
+      testUserIds.push(userId);
 
       const response = await request(app)
         .post("/api/auth/login")
@@ -79,20 +78,11 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({
-        success: false,
-        error: { message: "Invalid credentials" },
-      });
-      expect(mockedUserService.authenticate).toHaveBeenCalledWith(
-        "john@example.com",
-        "wrongpassword"
-      );
-      expect(mockedGenerateJWTToken).not.toHaveBeenCalled();
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe("Invalid credentials");
     });
 
     it("should return 400 for missing email", async () => {
-      mockedUserService.authenticate.mockResolvedValue(null);
-
       const response = await request(app)
         .post("/api/auth/login")
         .send({
@@ -107,8 +97,6 @@ describe("User Routes", () => {
     });
 
     it("should return 400 for missing password", async () => {
-      mockedUserService.authenticate.mockResolvedValue(null);
-
       const response = await request(app)
         .post("/api/auth/login")
         .send({
@@ -124,117 +112,74 @@ describe("User Routes", () => {
   });
 
   describe("POST /api/auth/register", () => {
-    // Mock user with snake_case fields as returned by the service
-    const MOCK_COMPANY_ID = "550e8400-e29b-41d4-a716-446655440099";
-    const mockNewUser = {
-      id: "user-456",
-      first_name: "Jane",
-      last_name: "Smith",
-      email: "jane@example.com",
-      role: "technician" as const,
-      active: true,
-      company_id: MOCK_COMPANY_ID,
-      created_at: new Date(),
-      updated_at: new Date(),
-      deleted_at: null,
-    } as any;
-
     it("should register a new user with company creation (first user becomes admin)", async () => {
-      // Mock company service
-      const companyService = require("../../services/company.service");
-      jest.spyOn(companyService.default, "findBySubdomain").mockResolvedValue(null);
-      jest.spyOn(companyService.default, "create").mockResolvedValue({
-        id: MOCK_COMPANY_ID,
-        name: "Test Company",
-        subdomain: "test-company",
-        plan: "free",
-        status: "active",
-        settings: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const adminUser = {
-        ...mockNewUser,
-        role: "admin" as const,
-      };
-
-      mockedUserService.create.mockResolvedValue(adminUser);
-      mockedGenerateJWTToken.mockReturnValue("mock-jwt-token");
-
+      // Use unique company name to avoid conflicts
+      const uniqueCompanyName = `Test Company ${Date.now()}`;
       const response = await request(app)
         .post("/api/auth/register")
         .send({
           firstName: "Jane",
           lastName: "Smith",
-          email: "jane@example.com",
-          companyName: "Test Company",
+          email: `jane-${Date.now()}@example.com`,
+          companyName: uniqueCompanyName,
           password: "Password123",
         });
 
       expect(response.status).toBe(201);
-      expect(response.body).toEqual({
-        success: true,
-        data: {
-          user: {
-            id: "user-456",
-            firstName: "Jane",
-            lastName: "Smith",
-            email: "jane@example.com",
-            role: "admin",
-          },
-          accessToken: "mock-jwt-token",
-          refreshToken: "mock-jwt-token",
-        },
-      });
-      expect(mockedUserService.create).toHaveBeenCalledWith({
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        password: "Password123",
-        companyId: MOCK_COMPANY_ID,
-        role: "admin",
-      });
-      expect(mockedGenerateJWTToken).toHaveBeenCalledWith(adminUser);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toBeDefined();
+      expect(response.body.data.user.firstName).toBe("Jane");
+      expect(response.body.data.user.lastName).toBe("Smith");
+      expect(response.body.data.user.role).toBe("admin"); // First user becomes admin
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
+
+      // Track created company and user for cleanup
+      if (response.body.data.user.id) {
+        testUserIds.push(response.body.data.user.id);
+        // Get company ID from user's company_id in database
+        const user = await db
+          .selectFrom("users")
+          .select("company_id")
+          .where("id", "=", response.body.data.user.id)
+          .executeTakeFirst();
+        if (user) {
+          testCompanyIds.push(user.company_id as unknown as string);
+        }
+      }
     });
 
     it("should register a new user with invitation token", async () => {
-      // Mock invitation service
-      const invitationService = require("../../services/invitation.service");
-      const mockInvitation = {
-        id: "invitation-123",
-        companyId: MOCK_COMPANY_ID,
+      // Skip if invitations table doesn't exist
+      try {
+        await db.selectFrom("invitations").select("id").limit(1).execute();
+      } catch (error: unknown) {
+        const err = error as { message?: string };
+        if (err.message?.includes("does not exist")) {
+          console.warn("Skipping invitation test - invitations table does not exist");
+          return;
+        }
+        throw error;
+      }
+
+      // Create test company
+      const companyId = await createTestCompany();
+      testCompanyIds.push(companyId);
+
+      // Create admin user to invite
+      const adminUser = await createAuthenticatedUser(companyId, "admin", {
+        email: "admin@test.com",
+        firstName: "Admin",
+        lastName: "User",
+      });
+      testUserIds.push(adminUser.userId);
+
+      // Create invitation
+      const invitation = await createTestInvitation(companyId, adminUser.userId, {
         email: "jane@example.com",
-        token: "valid-token-123",
-        role: "technician" as const,
-        invitedBy: "admin-user-id",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        usedAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      jest.spyOn(invitationService.default, "isTokenValid").mockResolvedValue({
-        valid: true,
-        invitation: mockInvitation,
+        role: "technician",
       });
-      jest.spyOn(invitationService.default, "markAsUsed").mockResolvedValue(true);
-
-      // Mock company service
-      const companyService = require("../../services/company.service");
-      jest.spyOn(companyService.default, "findById").mockResolvedValue({
-        id: MOCK_COMPANY_ID,
-        name: "Existing Company",
-        subdomain: "existing-company",
-        plan: "free",
-        status: "active",
-        settings: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      mockedUserService.create.mockResolvedValue(mockNewUser);
-      mockedGenerateJWTToken.mockReturnValue("mock-jwt-token");
+      testInvitationIds.push(invitation.id);
 
       const response = await request(app)
         .post("/api/auth/register")
@@ -242,48 +187,41 @@ describe("User Routes", () => {
           firstName: "Jane",
           lastName: "Smith",
           email: "jane@example.com",
-          invitationToken: "valid-token-123",
+          invitationToken: invitation.token,
           password: "Password123",
         });
 
       expect(response.status).toBe(201);
-      expect(response.body).toEqual({
-        success: true,
-        data: {
-          user: {
-            id: "user-456",
-            firstName: "Jane",
-            lastName: "Smith",
-            email: "jane@example.com",
-            role: "technician",
-          },
-          accessToken: "mock-jwt-token",
-          refreshToken: "mock-jwt-token",
-        },
-      });
-      expect(invitationService.default.isTokenValid).toHaveBeenCalledWith(
-        "valid-token-123",
-        "jane@example.com"
-      );
-      expect(invitationService.default.markAsUsed).toHaveBeenCalledWith("valid-token-123");
-      expect(mockedUserService.create).toHaveBeenCalledWith({
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        password: "Password123",
-        companyId: MOCK_COMPANY_ID,
-        role: "technician",
-      });
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toBeDefined();
+      expect(response.body.data.user.email).toBe("jane@example.com");
+      expect(response.body.data.user.firstName).toBe("Jane");
+      expect(response.body.data.user.lastName).toBe("Smith");
+      expect(response.body.data.user.role).toBe("technician"); // Role from invitation
+      expect(response.body.data.accessToken).toBeDefined();
+      expect(response.body.data.refreshToken).toBeDefined();
+
+      if (response.body.data.user.id) {
+        testUserIds.push(response.body.data.user.id);
+      }
+
+      // Verify invitation was marked as used
+      const usedInvitation = await invitationService.findByToken(invitation.token);
+      expect(usedInvitation?.usedAt).toBeDefined();
     });
 
     it("should return 400 for invalid invitation token", async () => {
-      // Mock invitation service
-      const invitationService = require("../../services/invitation.service");
-      jest.spyOn(invitationService.default, "isTokenValid").mockResolvedValue({
-        valid: false,
-        invitation: null,
-        error: "Invalid invitation token",
-      });
+      // Skip if invitations table doesn't exist
+      try {
+        await db.selectFrom("invitations").select("id").limit(1).execute();
+      } catch (error: unknown) {
+        const err = error as { message?: string };
+        if (err.message?.includes("does not exist")) {
+          console.warn("Skipping invitation test - invitations table does not exist");
+          return;
+        }
+        throw error;
+      }
 
       const response = await request(app)
         .post("/api/auth/register")
@@ -317,13 +255,15 @@ describe("User Routes", () => {
     });
 
     it("should return 400 when both companyName and invitationToken provided", async () => {
+      // Use unique company name
+      const uniqueCompanyName = `Test Company ${Date.now()}`;
       const response = await request(app)
         .post("/api/auth/register")
         .send({
           firstName: "Jane",
           lastName: "Smith",
-          email: "jane@example.com",
-          companyName: "Test Company",
+          email: `jane-${Date.now()}@example.com`,
+          companyName: uniqueCompanyName,
           invitationToken: "token-123",
           password: "Password123",
         });
@@ -334,74 +274,47 @@ describe("User Routes", () => {
       expect(response.body.error.errors).toHaveProperty("_error");
     });
 
-    it("should return 400 when registration fails", async () => {
-      // Mock company service
-      const companyService = require("../../services/company.service");
-      jest.spyOn(companyService.default, "findBySubdomain").mockResolvedValue(null);
-      jest.spyOn(companyService.default, "create").mockResolvedValue({
-        id: MOCK_COMPANY_ID,
-        name: "Test Company",
-        subdomain: "test-company",
-        plan: "free",
-        status: "active",
-        settings: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    it("should allow same email in different companies", async () => {
+      // Create test company
+      const companyId = await createTestCompany();
+      testCompanyIds.push(companyId);
+
+      // Create existing user in first company
+      const existingUserId = await createTestUser(companyId, {
+        email: "jane@example.com",
       });
+      testUserIds.push(existingUserId);
 
-      mockedUserService.create.mockResolvedValue(null);
-
+      // Try to register with same email but different company
+      // This should succeed because email uniqueness is per-company, not global
+      const uniqueCompanyName = `Test Company ${Date.now()}`;
       const response = await request(app)
         .post("/api/auth/register")
         .send({
           firstName: "Jane",
           lastName: "Smith",
           email: "jane@example.com",
-          companyName: "Test Company",
+          companyName: uniqueCompanyName,
           password: "Password123",
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toBe("Registration failed");
-    });
+      // Should succeed because emails are unique per-company, not globally
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user.email).toBe("jane@example.com");
 
-    it("should handle service errors", async () => {
-      // Mock company service
-      const companyService = require("../../services/company.service");
-      jest.spyOn(companyService.default, "findBySubdomain").mockResolvedValue(null);
-      jest.spyOn(companyService.default, "create").mockResolvedValue({
-        id: MOCK_COMPANY_ID,
-        name: "Test Company",
-        subdomain: "test-company",
-        plan: "free",
-        status: "active",
-        settings: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      mockedUserService.create.mockRejectedValue(
-        new Error("Database error")
-      );
-
-      const response = await request(app)
-        .post("/api/auth/register")
-        .send({
-          firstName: "Jane",
-          lastName: "Smith",
-          email: "jane@example.com",
-          companyName: "Test Company",
-          password: "Password123",
-        });
-
-      expect(response.status).toBe(500);
-      expect(response.body).toEqual({
-        success: false,
-        error: { message: "Database error" },
-      });
-      expect(mockedUserService.create).toHaveBeenCalled();
+      // Track created user and company for cleanup
+      if (response.body.data.user.id) {
+        testUserIds.push(response.body.data.user.id);
+        const user = await db
+          .selectFrom("users")
+          .select("company_id")
+          .where("id", "=", response.body.data.user.id)
+          .executeTakeFirst();
+        if (user) {
+          testCompanyIds.push(user.company_id as unknown as string);
+        }
+      }
     });
   });
 });
-

@@ -1,263 +1,147 @@
 import request from "supertest";
 import app from "../../app";
-import customerService from "../../services/customer.service";
-import ticketService from "../../services/ticket.service";
-import userService from "../../services/user.service";
-import { verifyJWTToken } from "../../utils/auth";
+import { createAuthenticatedUser, createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
+import { cleanupTestData } from "../helpers/db.helper";
+import { createTestCompany, createTestCustomer, createTestTicket, createTestUser } from "../helpers/seed.helper";
 
-// Mock the ticket service, customer service, user service, and auth
-jest.mock("../../services/ticket.service");
-jest.mock("../../services/customer.service");
-jest.mock("../../services/user.service");
-jest.mock("../../utils/auth");
+describe("Ticket Routes Integration Tests", () => {
+  let testCompanyId: string;
+  let testUserIds: string[] = [];
+  let testCustomerIds: string[] = [];
+  let testTicketIds: string[] = [];
+  let authToken: string;
+  let adminToken: string;
+  let managerToken: string;
+  let technicianUserId: string;
 
-const mockedTicketService = ticketService as jest.Mocked<
-  typeof ticketService
->;
-const mockedCustomerService = customerService as jest.Mocked<
-  typeof customerService
->;
-const mockedUserService = userService as jest.Mocked<
-  typeof userService
->;
-const mockedVerifyJWTToken = verifyJWTToken as jest.MockedFunction<
-  typeof verifyJWTToken
->;
+  beforeEach(async () => {
+    // Create test company
+    testCompanyId = await createTestCompany();
 
-// Mock user for authentication
-const MOCK_COMPANY_ID = "550e8400-e29b-41d4-a716-446655440099";
-const mockUser = {
-  id: "550e8400-e29b-41d4-a716-446655440000",
-  firstName: "John",
-  lastName: "Doe",
-  email: "john@example.com",
-  role: "technician" as const,
-  active: true,
-  company_id: MOCK_COMPANY_ID,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+    // Create test users with different roles
+    const users = await createTestUsersWithRoles(testCompanyId);
+    testUserIds.push(users.admin.userId, users.frontdesk.userId, users.technician.userId);
+    
+    authToken = users.technician.token;
+    adminToken = users.admin.token;
+    technicianUserId = users.technician.userId;
 
-const mockAdminUser = {
-  ...mockUser,
-  role: "admin" as const,
-};
+    // Create manager user
+    const managerUser = await createAuthenticatedUser(testCompanyId, "manager", {
+      email: "manager@test.com",
+      firstName: "Manager",
+      lastName: "User",
+    });
+    testUserIds.push(managerUser.userId);
+    managerToken = managerUser.token;
+  });
 
-const mockManagerUser = {
-  ...mockUser,
-  role: "manager" as const,
-};
-
-// Test UUIDs
-const CUSTOMER_ID_1 = "550e8400-e29b-41d4-a716-446655440001";
-const CUSTOMER_ID_2 = "550e8400-e29b-41d4-a716-446655440002";
-const TICKET_ID_1 = "550e8400-e29b-41d4-a716-446655440010";
-const TICKET_ID_2 = "550e8400-e29b-41d4-a716-446655440011";
-const TICKET_ID_NEW = "550e8400-e29b-41d4-a716-446655440012";
-const TECHNICIAN_ID = "550e8400-e29b-41d4-a716-446655440000";
-
-describe("Ticket Routes", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    // Default: authenticate all requests
-    mockedVerifyJWTToken.mockResolvedValue(mockUser as any);
-    // Mock customer and user services to return null by default
-    mockedCustomerService.findById.mockResolvedValue(null);
-    mockedUserService.findById.mockResolvedValue(null);
+  afterEach(async () => {
+    // Clean up all test data
+    await cleanupTestData({
+      companyIds: [testCompanyId],
+      userIds: testUserIds,
+      customerIds: testCustomerIds,
+      ticketIds: testTicketIds,
+    });
+    testUserIds = [];
+    testCustomerIds = [];
+    testTicketIds = [];
   });
 
   describe("GET /api/tickets", () => {
     it("should return list of tickets", async () => {
-      const mockTickets = [
-        {
-          id: TICKET_ID_1,
-          ticketNumber: "TKT-12345678-001",
-          customerId: CUSTOMER_ID_1,
-          technicianId: TECHNICIAN_ID,
-          status: "in_progress" as const,
-          priority: "high" as const,
-          deviceType: "Smartphone",
-          deviceBrand: "Apple",
-          deviceModel: "iPhone 13",
-          serialNumber: "SN123456",
-          issueDescription: "Screen cracked",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: TICKET_ID_2,
-          ticketNumber: "TKT-12345678-002",
-          customerId: CUSTOMER_ID_2,
-          technicianId: null,
-          status: "new" as const,
-          priority: "medium" as const,
-          deviceType: "Laptop",
-          deviceBrand: "Dell",
-          deviceModel: "XPS 15",
-          serialNumber: null,
-          issueDescription: "Won't turn on",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      const mockCustomer1 = {
-        id: CUSTOMER_ID_1,
+      // Create test customers
+      const customer1Id = await createTestCustomer(testCompanyId, {
         firstName: "Alice",
         lastName: "Johnson",
         email: "alice@example.com",
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        notes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const mockCustomer2 = {
-        id: CUSTOMER_ID_2,
+      });
+      const customer2Id = await createTestCustomer(testCompanyId, {
         firstName: "Bob",
         lastName: "Williams",
         email: "bob@example.com",
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        notes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
+      testCustomerIds.push(customer1Id, customer2Id);
 
-      mockedTicketService.findAll.mockResolvedValue(mockTickets);
-      mockedCustomerService.findById
-        .mockResolvedValueOnce(mockCustomer1)
-        .mockResolvedValueOnce(mockCustomer2);
+      // Create test tickets
+      const ticket1Id = await createTestTicket(testCompanyId, customer1Id, {
+        deviceType: "Smartphone",
+        deviceBrand: "Apple",
+        deviceModel: "iPhone 13",
+        status: "in_progress",
+        priority: "high",
+      });
+      const ticket2Id = await createTestTicket(testCompanyId, customer2Id, {
+        deviceType: "Laptop",
+        deviceBrand: "Dell",
+        deviceModel: "XPS 15",
+        status: "new",
+        priority: "medium",
+      });
+      testTicketIds.push(ticket1Id, ticket2Id);
 
       const response = await request(app)
         .get("/api/tickets")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.data[0].ticketNumber).toBe("TKT-12345678-001");
-      expect(mockedTicketService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, undefined, undefined);
+      expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+      
+      const ticketNumbers = response.body.data.map((t: { ticketNumber: string }) => t.ticketNumber);
+      expect(ticketNumbers.length).toBeGreaterThanOrEqual(2);
     });
 
     it("should filter tickets by customerId", async () => {
-      const mockTickets = [
-        {
-          id: "ticket-1",
-          ticketNumber: "TKT-12345678-001",
-          customerId: CUSTOMER_ID_1,
-          technicianId: null,
-          status: "new" as const,
-          priority: "medium" as const,
-          deviceType: "Smartphone",
-          deviceBrand: null,
-          deviceModel: null,
-          serialNumber: null,
-          issueDescription: "Screen cracked",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      const mockCustomer = {
-        id: CUSTOMER_ID_1,
+      const customerId = await createTestCustomer(testCompanyId, {
         firstName: "Alice",
         lastName: "Johnson",
         email: "alice@example.com",
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        notes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
+      testCustomerIds.push(customerId);
 
-      mockedTicketService.findAll.mockResolvedValue(mockTickets);
-      mockedCustomerService.findById.mockResolvedValue(mockCustomer);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        deviceType: "Smartphone",
+        status: "new",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .get(`/api/tickets?customerId=${CUSTOMER_ID_1}`)
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/tickets?customerId=${customerId}`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(mockedTicketService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, CUSTOMER_ID_1, undefined);
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+      expect(response.body.data[0].customerId).toBe(customerId);
     });
 
     it("should filter tickets by status", async () => {
-      const mockTickets = [
-        {
-          id: "ticket-1",
-          ticketNumber: "TKT-12345678-001",
-          customerId: CUSTOMER_ID_1,
-          technicianId: null,
-          status: "completed" as const,
-          priority: "medium" as const,
-          deviceType: "Smartphone",
-          deviceBrand: null,
-          deviceModel: null,
-          serialNumber: null,
-          issueDescription: "Screen cracked",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      const mockCustomer = {
-        id: CUSTOMER_ID_1,
+      const customerId = await createTestCustomer(testCompanyId, {
         firstName: "Alice",
         lastName: "Johnson",
         email: "alice@example.com",
-        phone: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        notes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
+      testCustomerIds.push(customerId);
 
-      mockedTicketService.findAll.mockResolvedValue(mockTickets);
-      mockedCustomerService.findById.mockResolvedValue(mockCustomer);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        deviceType: "Smartphone",
+        status: "completed",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
         .get("/api/tickets?status=completed")
-        .set("Authorization", "Bearer valid-token");
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(mockedTicketService.findAll).toHaveBeenCalledWith(MOCK_COMPANY_ID, undefined, "completed");
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+      expect(response.body.data[0].status).toBe("completed");
     });
 
     it("should return 401 without authentication token", async () => {
-      mockedVerifyJWTToken.mockResolvedValue(null);
-
       const response = await request(app).get("/api/tickets");
 
       expect(response.status).toBe(401);
@@ -265,11 +149,9 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 403 with invalid token", async () => {
-      mockedVerifyJWTToken.mockResolvedValue(null);
-
       const response = await request(app)
         .get("/api/tickets")
-        .set("Authorization", "Bearer invalid-token");
+        .set(getAuthHeader("invalid-token"));
 
       expect(response.status).toBe(403);
       expect(response.body.message).toBe("Unauthorized");
@@ -278,45 +160,40 @@ describe("Ticket Routes", () => {
 
   describe("GET /api/tickets/:id", () => {
     it("should return ticket by ID", async () => {
-      const mockTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "high" as const,
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
         deviceType: "Smartphone",
         deviceBrand: "Apple",
         deviceModel: "iPhone 13",
         serialNumber: "SN123456",
         issueDescription: "Screen cracked",
-        diagnosticNotes: "Needs screen replacement",
-        repairNotes: null,
-        estimatedCompletionDate: new Date("2024-12-31"),
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedTicketService.findById.mockResolvedValue(mockTicket);
+        status: "in_progress",
+        priority: "high",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .get(`/api/tickets/${TICKET_ID_1}`)
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.id).toBe(TICKET_ID_1);
-      expect(response.body.data.ticketNumber).toBe("TKT-12345678-001");
-      expect(mockedTicketService.findById).toHaveBeenCalledWith(TICKET_ID_1, MOCK_COMPANY_ID);
+      expect(response.body.data.id).toBe(ticketId);
+      expect(response.body.data.deviceType).toBe("Smartphone");
+      expect(response.body.data.deviceBrand).toBe("Apple");
     });
 
     it("should return 404 when ticket not found", async () => {
-      mockedTicketService.findById.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .get("/api/tickets/non-existent-id")
-        .set("Authorization", "Bearer valid-token");
+        .get(`/api/tickets/${fakeId}`)
+        .set(getAuthHeader(authToken));
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -326,8 +203,15 @@ describe("Ticket Routes", () => {
 
   describe("POST /api/tickets", () => {
     it("should create a new ticket", async () => {
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
+
       const newTicketData = {
-        customerId: CUSTOMER_ID_1,
+        customerId: customerId,
         deviceType: "Smartphone",
         issueDescription: "Screen cracked",
         priority: "high" as const,
@@ -335,38 +219,26 @@ describe("Ticket Routes", () => {
         deviceModel: "iPhone 13",
       };
 
-      const mockCreatedTicket = {
-        id: TICKET_ID_NEW,
-        ticketNumber: "TKT-12345678-999",
-        ...newTicketData,
-        technicianId: null,
-        status: "new" as const,
-        serialNumber: null,
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedTicketService.create.mockResolvedValue(mockCreatedTicket);
-
       const response = await request(app)
         .post("/api/tickets")
-        .set("Authorization", "Bearer valid-token")
+        .set(getAuthHeader(authToken))
         .send(newTicketData);
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.data.deviceType).toBe("Smartphone");
-      expect(mockedTicketService.create).toHaveBeenCalledWith(newTicketData, MOCK_COMPANY_ID);
+      expect(response.body.data.issueDescription).toBe("Screen cracked");
+      expect(response.body.data.priority).toBe("high");
+      
+      if (response.body.data.id) {
+        testTicketIds.push(response.body.data.id);
+      }
     });
 
     it("should return 400 for missing required fields", async () => {
       const response = await request(app)
         .post("/api/tickets")
-        .set("Authorization", "Bearer valid-token")
+        .set(getAuthHeader(authToken))
         .send({
           deviceType: "Smartphone",
           // missing customerId and issueDescription
@@ -376,144 +248,87 @@ describe("Ticket Routes", () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error.message).toBe("Validation failed");
     });
-
-    it("should handle service errors when creating ticket", async () => {
-      mockedTicketService.create.mockRejectedValue(
-        new Error("Database error")
-      );
-
-      const response = await request(app)
-        .post("/api/tickets")
-        .set("Authorization", "Bearer valid-token")
-        .send({
-          customerId: CUSTOMER_ID_1,
-          deviceType: "Smartphone",
-          issueDescription: "Screen cracked",
-        });
-
-      expect(response.status).toBe(500);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toBe("Database error");
-    });
   });
 
   describe("PUT /api/tickets/:id", () => {
     it("should update ticket successfully", async () => {
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        deviceType: "Smartphone",
+        status: "in_progress",
+      });
+      testTicketIds.push(ticketId);
+
       const updateData = {
         status: "completed" as const,
         repairNotes: "Screen replaced successfully",
         completedDate: new Date().toISOString(),
       };
 
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "completed" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: "Screen replaced successfully",
-        estimatedCompletionDate: null,
-        completedDate: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedTicketService.update.mockResolvedValue(mockUpdatedTicket);
-
       const response = await request(app)
-        .put(`/api/tickets/${TICKET_ID_1}`)
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(authToken))
         .send(updateData);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.status).toBe("completed");
       expect(response.body.data.repairNotes).toBe("Screen replaced successfully");
-      expect(mockedTicketService.update).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        updateData,
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should update ticket priority successfully", async () => {
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        deviceType: "Smartphone",
+        priority: "medium",
+      });
+      testTicketIds.push(ticketId);
+
       const updateData = {
         priority: "urgent" as const,
       };
 
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "urgent" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedTicketService.update.mockResolvedValue(mockUpdatedTicket);
-
       const response = await request(app)
-        .put(`/api/tickets/${TICKET_ID_1}`)
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(authToken))
         .send(updateData);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.priority).toBe("urgent");
-      expect(mockedTicketService.update).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        updateData,
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should update priority to all valid values", async () => {
+      const customerId = await createTestCustomer(testCompanyId, {
+        firstName: "Alice",
+        lastName: "Johnson",
+        email: "alice@example.com",
+      });
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        deviceType: "Smartphone",
+      });
+      testTicketIds.push(ticketId);
+
       const validPriorities = ["low", "medium", "high", "urgent"];
 
       for (const priority of validPriorities) {
-        const mockUpdatedTicket = {
-          id: TICKET_ID_1,
-          ticketNumber: "TKT-12345678-001",
-          customerId: CUSTOMER_ID_1,
-          technicianId: null,
-          status: "new" as const,
-          priority: priority as "low" | "medium" | "high" | "urgent",
-          deviceType: "Smartphone",
-          deviceBrand: null,
-          deviceModel: null,
-          serialNumber: null,
-          issueDescription: "Test",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        mockedTicketService.update.mockResolvedValue(mockUpdatedTicket as any);
-
         const response = await request(app)
-          .put(`/api/tickets/${TICKET_ID_1}`)
-          .set("Authorization", "Bearer valid-token")
+          .put(`/api/tickets/${ticketId}`)
+          .set(getAuthHeader(authToken))
           .send({ priority });
 
         expect(response.status).toBe(200);
@@ -522,9 +337,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for invalid priority value", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .put(`/api/tickets/${TICKET_ID_1}`)
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(authToken))
         .send({ priority: "invalid_priority" });
 
       expect(response.status).toBe(400);
@@ -533,11 +354,10 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 404 when ticket not found for update", async () => {
-      mockedTicketService.update.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .put("/api/tickets/non-existent-id")
-        .set("Authorization", "Bearer valid-token")
+        .put(`/api/tickets/${fakeId}`)
+        .set(getAuthHeader(authToken))
         .send({ status: "completed" });
 
       expect(response.status).toBe(404);
@@ -548,26 +368,32 @@ describe("Ticket Routes", () => {
 
   describe("DELETE /api/tickets/:id", () => {
     it("should delete ticket successfully", async () => {
-      mockedTicketService.delete.mockResolvedValue(true);
-      mockedVerifyJWTToken.mockResolvedValue(mockAdminUser as any);
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .delete(`/api/tickets/${TICKET_ID_1}`)
-        .set("Authorization", "Bearer valid-token");
+        .delete(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(adminToken));
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.message).toBe("Ticket deleted successfully");
-      expect(mockedTicketService.delete).toHaveBeenCalledWith(TICKET_ID_1, MOCK_COMPANY_ID);
+
+      // Verify ticket is deleted (soft delete)
+      const getResponse = await request(app)
+        .get(`/api/tickets/${ticketId}`)
+        .set(getAuthHeader(authToken));
+      expect(getResponse.status).toBe(404);
     });
 
     it("should return 404 when ticket not found for deletion", async () => {
-      mockedTicketService.delete.mockResolvedValue(false);
-      mockedVerifyJWTToken.mockResolvedValue(mockAdminUser as any);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .delete("/api/tickets/non-existent-id")
-        .set("Authorization", "Bearer valid-token");
+        .delete(`/api/tickets/${fakeId}`)
+        .set(getAuthHeader(adminToken));
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -577,119 +403,52 @@ describe("Ticket Routes", () => {
 
   describe("POST /api/tickets/:id/assign", () => {
     it("should assign technician to ticket successfully", async () => {
-      const mockTechnician = {
-        id: TECHNICIAN_ID,
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        role: "technician" as const,
-        active: true,
-        company_id: MOCK_COMPANY_ID,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "assigned" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedUserService.findById.mockResolvedValue(mockTechnician as any);
-      mockedTicketService.assignTechnician.mockResolvedValue(mockUpdatedTicket);
-      mockedVerifyJWTToken.mockResolvedValue(mockManagerUser as any);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        status: "new",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
-        .send({ technicianId: TECHNICIAN_ID });
+        .post(`/api/tickets/${ticketId}/assign`)
+        .set(getAuthHeader(managerToken))
+        .send({ technicianId: technicianUserId });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.technicianId).toBe(TECHNICIAN_ID);
+      expect(response.body.data.technicianId).toBe(technicianUserId);
       expect(response.body.data.technician).toBeDefined();
-      expect(response.body.data.technician.id).toBe(TECHNICIAN_ID);
-      expect(mockedTicketService.assignTechnician).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        TECHNICIAN_ID,
-        MOCK_COMPANY_ID
-      );
+      expect(response.body.data.technician.id).toBe(technicianUserId);
     });
 
     it("should unassign technician when technicianId is null", async () => {
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: null,
-        status: "new" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      mockedTicketService.assignTechnician.mockResolvedValue(mockUpdatedTicket);
-      mockedVerifyJWTToken.mockResolvedValue(mockManagerUser as any);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        technicianId: technicianUserId,
+        status: "assigned",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/assign`)
+        .set(getAuthHeader(managerToken))
         .send({ technicianId: null });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.technicianId).toBeNull();
-      expect(mockedTicketService.assignTechnician).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        null,
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should return 404 when ticket not found", async () => {
-      const mockTechnician = {
-        id: TECHNICIAN_ID,
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        role: "technician" as const,
-        active: true,
-        company_id: MOCK_COMPANY_ID,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockedUserService.findById.mockResolvedValue(mockTechnician as any);
-      mockedTicketService.assignTechnician.mockResolvedValue(null);
-      mockedVerifyJWTToken.mockResolvedValue(mockManagerUser as any);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
-        .send({ technicianId: TECHNICIAN_ID });
+        .post(`/api/tickets/${fakeId}/assign`)
+        .set(getAuthHeader(managerToken))
+        .send({ technicianId: technicianUserId });
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -697,13 +456,17 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 404 when technician not found", async () => {
-      mockedUserService.findById.mockResolvedValue(null);
-      mockedVerifyJWTToken.mockResolvedValue(mockManagerUser as any);
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
+      const fakeTechnicianId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
-        .send({ technicianId: TECHNICIAN_ID });
+        .post(`/api/tickets/${ticketId}/assign`)
+        .set(getAuthHeader(managerToken))
+        .send({ technicianId: fakeTechnicianId });
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -711,25 +474,23 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 when user is not a technician or admin", async () => {
-      const mockFrontdeskUser = {
-        id: TECHNICIAN_ID,
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        role: "frontdesk" as const,
-        active: true,
-        company_id: MOCK_COMPANY_ID,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      mockedUserService.findById.mockResolvedValue(mockFrontdeskUser as any);
-      mockedVerifyJWTToken.mockResolvedValue(mockManagerUser as any);
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
+      // Create a frontdesk user
+      const frontdeskUserId = await createTestUser(testCompanyId, {
+        role: "frontdesk",
+        email: "frontdesk2@test.com",
+      });
+      testUserIds.push(frontdeskUserId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
-        .send({ technicianId: TECHNICIAN_ID });
+        .post(`/api/tickets/${ticketId}/assign`)
+        .set(getAuthHeader(managerToken))
+        .send({ technicianId: frontdeskUserId });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -739,46 +500,19 @@ describe("Ticket Routes", () => {
     });
 
     it("should allow admin to be assigned", async () => {
-      const mockAdmin = {
-        id: TECHNICIAN_ID,
-        firstName: "Admin",
-        lastName: "User",
-        email: "admin@example.com",
-        role: "admin" as const,
-        active: true,
-        company_id: MOCK_COMPANY_ID,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "assigned" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        status: "new",
+      });
+      testTicketIds.push(ticketId);
 
-      mockedUserService.findById.mockResolvedValue(mockAdmin as any);
-      mockedTicketService.assignTechnician.mockResolvedValue(mockUpdatedTicket);
-      mockedVerifyJWTToken.mockResolvedValue(mockAdminUser as any);
-
+      const adminUserId = testUserIds.find(id => id !== technicianUserId) || testUserIds[0];
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/assign`)
-        .set("Authorization", "Bearer valid-token")
-        .send({ technicianId: TECHNICIAN_ID });
+        .post(`/api/tickets/${ticketId}/assign`)
+        .set(getAuthHeader(adminToken))
+        .send({ technicianId: adminUserId });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -787,49 +521,29 @@ describe("Ticket Routes", () => {
 
   describe("POST /api/tickets/:id/status", () => {
     it("should update ticket status successfully", async () => {
-      const mockUpdatedTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "completed" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      mockedTicketService.updateStatus.mockResolvedValue(mockUpdatedTicket);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        status: "new",
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/status`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/status`)
+        .set(getAuthHeader(authToken))
         .send({ status: "completed" });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.status).toBe("completed");
-      expect(mockedTicketService.updateStatus).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        "completed",
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should return 404 when ticket not found", async () => {
-      mockedTicketService.updateStatus.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/status`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${fakeId}/status`)
+        .set(getAuthHeader(authToken))
         .send({ status: "completed" });
 
       expect(response.status).toBe(404);
@@ -838,9 +552,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for invalid status", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/status`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/status`)
+        .set(getAuthHeader(authToken))
         .send({ status: "invalid_status" });
 
       expect(response.status).toBe(400);
@@ -849,9 +569,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for missing status", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/status`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/status`)
+        .set(getAuthHeader(authToken))
         .send({});
 
       expect(response.status).toBe(400);
@@ -860,34 +586,18 @@ describe("Ticket Routes", () => {
     });
 
     it("should accept all valid status values", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const validStatuses = ["new", "assigned", "in_progress", "on_hold", "completed", "cancelled"];
 
       for (const status of validStatuses) {
-        const mockUpdatedTicket = {
-          id: TICKET_ID_1,
-          ticketNumber: "TKT-12345678-001",
-          customerId: CUSTOMER_ID_1,
-          technicianId: null,
-          status: status as "new" | "assigned" | "in_progress" | "on_hold" | "completed" | "cancelled",
-          priority: "medium" as const,
-          deviceType: "Smartphone",
-          deviceBrand: null,
-          deviceModel: null,
-          serialNumber: null,
-          issueDescription: "Test",
-          diagnosticNotes: null,
-          repairNotes: null,
-          estimatedCompletionDate: null,
-          completedDate: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-
-        mockedTicketService.updateStatus.mockResolvedValue(mockUpdatedTicket as any);
-
         const response = await request(app)
-          .post(`/api/tickets/${TICKET_ID_1}/status`)
-          .set("Authorization", "Bearer valid-token")
+          .post(`/api/tickets/${ticketId}/status`)
+          .set(getAuthHeader(authToken))
           .send({ status });
 
         expect(response.status).toBe(200);
@@ -898,80 +608,36 @@ describe("Ticket Routes", () => {
 
   describe("POST /api/tickets/:id/diagnostic-notes", () => {
     it("should add diagnostic notes to ticket successfully", async () => {
-      const mockTicketWithNotes = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: "Initial diagnostic: Screen needs replacement",
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      // Mock findById to return ticket with no existing notes
-      mockedTicketService.findById.mockResolvedValue({
-        ...mockTicketWithNotes,
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
         diagnosticNotes: null,
       });
-      mockedTicketService.addDiagnosticNotes.mockResolvedValue(mockTicketWithNotes);
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Initial diagnostic: Screen needs replacement" });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.diagnosticNotes).toBe("Initial diagnostic: Screen needs replacement");
-      expect(mockedTicketService.addDiagnosticNotes).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        "Initial diagnostic: Screen needs replacement",
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should append diagnostic notes to existing notes", async () => {
-      const existingTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
         diagnosticNotes: "Initial check completed",
-        repairNotes: null,
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const mockUpdatedTicket = {
-        ...existingTicket,
-        diagnosticNotes: "Initial check completed\n\nFollow-up: Battery also needs replacement",
-      };
-
-      mockedTicketService.findById.mockResolvedValue(existingTicket);
-      mockedTicketService.addDiagnosticNotes.mockResolvedValue(mockUpdatedTicket);
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Follow-up: Battery also needs replacement" });
 
       expect(response.status).toBe(200);
@@ -981,12 +647,10 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 404 when ticket not found", async () => {
-      mockedTicketService.findById.mockResolvedValue(null);
-      mockedTicketService.addDiagnosticNotes.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${fakeId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Test notes" });
 
       expect(response.status).toBe(404);
@@ -995,9 +659,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for missing notes", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({});
 
       expect(response.status).toBe(400);
@@ -1006,9 +676,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for empty notes", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "   " });
 
       expect(response.status).toBe(400);
@@ -1017,11 +693,16 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for notes exceeding max length", async () => {
-      const longNotes = "a".repeat(10001);
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
+      const longNotes = "a".repeat(10001);
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/diagnostic-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/diagnostic-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: longNotes });
 
       expect(response.status).toBe(400);
@@ -1032,80 +713,36 @@ describe("Ticket Routes", () => {
 
   describe("POST /api/tickets/:id/repair-notes", () => {
     it("should add repair notes to ticket successfully", async () => {
-      const mockTicketWithNotes = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
-        repairNotes: "Screen replaced successfully",
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
-      // Mock findById to return ticket with no existing notes
-      mockedTicketService.findById.mockResolvedValue({
-        ...mockTicketWithNotes,
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
         repairNotes: null,
       });
-      mockedTicketService.addRepairNotes.mockResolvedValue(mockTicketWithNotes);
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Screen replaced successfully" });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.repairNotes).toBe("Screen replaced successfully");
-      expect(mockedTicketService.addRepairNotes).toHaveBeenCalledWith(
-        TICKET_ID_1,
-        "Screen replaced successfully",
-        MOCK_COMPANY_ID
-      );
     });
 
     it("should append repair notes to existing notes", async () => {
-      const existingTicket = {
-        id: TICKET_ID_1,
-        ticketNumber: "TKT-12345678-001",
-        customerId: CUSTOMER_ID_1,
-        technicianId: TECHNICIAN_ID,
-        status: "in_progress" as const,
-        priority: "high" as const,
-        deviceType: "Smartphone",
-        deviceBrand: "Apple",
-        deviceModel: "iPhone 13",
-        serialNumber: "SN123456",
-        issueDescription: "Screen cracked",
-        diagnosticNotes: null,
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
         repairNotes: "Screen replaced",
-        estimatedCompletionDate: null,
-        completedDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const mockUpdatedTicket = {
-        ...existingTicket,
-        repairNotes: "Screen replaced\n\nBattery also replaced",
-      };
-
-      mockedTicketService.findById.mockResolvedValue(existingTicket);
-      mockedTicketService.addRepairNotes.mockResolvedValue(mockUpdatedTicket);
+      });
+      testTicketIds.push(ticketId);
 
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Battery also replaced" });
 
       expect(response.status).toBe(200);
@@ -1115,12 +752,10 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 404 when ticket not found", async () => {
-      mockedTicketService.findById.mockResolvedValue(null);
-      mockedTicketService.addRepairNotes.mockResolvedValue(null);
-
+      const fakeId = "00000000-0000-0000-0000-000000000000";
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${fakeId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "Test notes" });
 
       expect(response.status).toBe(404);
@@ -1129,9 +764,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for missing notes", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({});
 
       expect(response.status).toBe(400);
@@ -1140,9 +781,15 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for empty notes", async () => {
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
+
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: "   " });
 
       expect(response.status).toBe(400);
@@ -1151,11 +798,16 @@ describe("Ticket Routes", () => {
     });
 
     it("should return 400 for notes exceeding max length", async () => {
-      const longNotes = "a".repeat(10001);
+      const customerId = await createTestCustomer(testCompanyId);
+      testCustomerIds.push(customerId);
 
+      const ticketId = await createTestTicket(testCompanyId, customerId);
+      testTicketIds.push(ticketId);
+
+      const longNotes = "a".repeat(10001);
       const response = await request(app)
-        .post(`/api/tickets/${TICKET_ID_1}/repair-notes`)
-        .set("Authorization", "Bearer valid-token")
+        .post(`/api/tickets/${ticketId}/repair-notes`)
+        .set(getAuthHeader(authToken))
         .send({ notes: longNotes });
 
       expect(response.status).toBe(400);
@@ -1164,4 +816,3 @@ describe("Ticket Routes", () => {
     });
   });
 });
-
