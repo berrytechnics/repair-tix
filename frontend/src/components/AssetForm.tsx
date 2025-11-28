@@ -128,8 +128,9 @@ export default function AssetForm({
       let response;
 
       if (isUpdateMode && assetId) {
-        // Update existing asset
-        const { customerId: _customerId, ...updateData } = cleanFormData as Asset;
+        // Update existing asset - exclude customerId from update data
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { customerId, ...updateData } = cleanFormData as Asset;
         response = await updateAsset(assetId, updateData);
       } else {
         // Create new asset
