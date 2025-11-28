@@ -253,3 +253,19 @@ export const getInvoicesByCustomer = async (
     response.data.error?.message || "Failed to fetch customer invoices"
   );
 };
+
+export const getInvoicesByTicket = async (
+  ticketId: string
+): Promise<ApiResponse<Invoice[]>> => {
+  const response = await api.get<ApiResponse<Invoice[]>>(
+    `/invoices?ticketId=${ticketId}`
+  );
+
+  if (response.data.success) {
+    return response.data;
+  }
+
+  throw new Error(
+    response.data.error?.message || "Failed to fetch ticket invoices"
+  );
+};

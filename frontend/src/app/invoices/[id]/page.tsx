@@ -1,13 +1,13 @@
 "use client";
 
 import {
-    Invoice,
-    InvoiceItem,
-    addInvoiceItem,
-    getInvoiceById,
-    markInvoiceAsPaid,
-    removeInvoiceItem,
-    updateInvoiceItem,
+  Invoice,
+  InvoiceItem,
+  addInvoiceItem,
+  getInvoiceById,
+  markInvoiceAsPaid,
+  removeInvoiceItem,
+  updateInvoiceItem,
 } from "@/lib/api/invoice.api";
 import { useUser } from "@/lib/UserContext";
 import { generateInvoicePDF } from "@/lib/utils/pdfGenerator";
@@ -483,6 +483,21 @@ export default function InvoiceDetailPage({
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
                     {invoice.paymentMethod}
+                  </dd>
+                </div>
+              )}
+              {invoice.ticketId && hasPermission("tickets.read") && (
+                <div className="sm:col-span-1">
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Related Ticket
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                    <Link
+                      href={`/tickets/${invoice.ticketId}`}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                    >
+                      {invoice.ticket?.ticketNumber || `Ticket ${invoice.ticketId}`}
+                    </Link>
                   </dd>
                 </div>
               )}

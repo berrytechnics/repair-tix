@@ -1,6 +1,7 @@
 "use client";
 
 import { getTechnicians, Technician } from "@/lib/api";
+import { getInvoicesByTicket, Invoice } from "@/lib/api/invoice.api";
 import {
   addDiagnosticNote,
   addRepairNote,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/api/ticket.api";
 import { useUser } from "@/lib/UserContext";
 import { getPriorityColor, getStatusColor } from "@/lib/utils/ticketUtils";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
@@ -35,6 +37,8 @@ export default function TicketDetailPage({
     "diagnostic"
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
 
   // Parse notes from plain text (notes are appended with double newlines)
   const parseNotes = (notesText: string | null | undefined): string[] => {
@@ -78,6 +82,29 @@ export default function TicketDetailPage({
 
     fetchTicket();
   }, [params.id]);
+
+  // Fetch invoices for this ticket
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      if (!ticket?.id || !hasPermission("invoices.read")) {
+        return;
+      }
+      setIsLoadingInvoices(true);
+      try {
+        const response = await getInvoicesByTicket(ticket.id);
+        if (response.data) {
+          setInvoices(response.data);
+        }
+      } catch (err) {
+        console.error("Error fetching invoices:", err);
+        // Don't show error to user, just log it
+      } finally {
+        setIsLoadingInvoices(false);
+      }
+    };
+
+    fetchInvoices();
+  }, [ticket?.id, hasPermission]);
 
   // Fetch technicians
   useEffect(() => {
@@ -316,6 +343,14 @@ export default function TicketDetailPage({
             >
               Back to List
             </button>
+            {hasPermission("invoices.create") && (
+              <button
+                onClick={() => router.push(`/invoices/new?customerId=${ticket.customerId}&ticketId=${ticket.id}`)}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-green-600 dark:bg-green-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              >
+                Create Invoice
+              </button>
+            )}
             <button
               onClick={() => router.push(`/tickets/${ticket.id}/edit`)}
               className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 dark:bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
@@ -394,6 +429,26 @@ export default function TicketDetailPage({
                       : "N/A"}
                   </dd>
                 </div>
+                {hasPermission("invoices.read") && invoices.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Related Invoices
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                      <div className="flex flex-wrap gap-2">
+                        {invoices.map((invoice) => (
+                          <Link
+                            key={invoice.id}
+                            href={`/invoices/${invoice.id}`}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                          >
+                            Invoice {invoice.invoiceNumber}
+                          </Link>
+                        ))}
+                      </div>
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
 

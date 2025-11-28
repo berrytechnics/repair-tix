@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { Customer, getCustomers } from "@/lib/api/customer.api";
 
-import { Ticket, getTickets } from "@/lib/api/ticket.api";
+import { Ticket, getTickets, getTicketById } from "@/lib/api/ticket.api";
 
 import {
   CreateInvoiceData,
@@ -39,6 +39,7 @@ interface InvoiceFormProps {
 
 export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditMode = !!invoiceId;
 
   // Form state
@@ -81,13 +82,56 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
 
         if (customersResponse.data) setCustomers(customersResponse.data);
         if (ticketsResponse.data) setTickets(ticketsResponse.data);
+
+        // Pre-populate form from query parameters (for creating invoice from ticket)
+        if (!isEditMode) {
+          const customerIdParam = searchParams.get("customerId");
+          const ticketIdParam = searchParams.get("ticketId");
+
+          if (customerIdParam) {
+            setFormData((prev) => ({
+              ...prev,
+              customerId: customerIdParam,
+              ticketId: ticketIdParam || undefined,
+            }));
+
+            // If ticketId is provided, fetch ticket details and create initial invoice item
+            if (ticketIdParam) {
+              try {
+                const ticketResponse = await getTicketById(ticketIdParam);
+                if (ticketResponse.data) {
+                  const ticket = ticketResponse.data;
+                  // Create an initial invoice item based on the ticket
+                  const initialItem: InvoiceItem = {
+                    id: `temp-${Date.now()}`,
+                    invoiceId: "",
+                    description: `Repair service for ${ticket.deviceType}${ticket.deviceBrand ? ` - ${ticket.deviceBrand}` : ""}${ticket.deviceModel ? ` ${ticket.deviceModel}` : ""}`,
+                    quantity: 1,
+                    unitPrice: 0, // User can set the price
+                    discountPercent: undefined,
+                    type: "service",
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  };
+                  setFormData((prev) => ({
+                    ...prev,
+                    invoiceItems: [initialItem],
+                    notes: ticket.issueDescription ? `Ticket: ${ticket.ticketNumber}\n${ticket.issueDescription}` : undefined,
+                  }));
+                }
+              } catch (error) {
+                console.error("Failed to fetch ticket details", error);
+              }
+            }
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch initial data", error);
       }
     };
 
     fetchInitialData();
-  }, []);
+  }, [isEditMode, searchParams]);
 
   // Fetch invoice data for edit mode
   useEffect(() => {
@@ -341,11 +385,21 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     setIsSubmitting(true);
 
     try {
+      // Strip temporary fields from invoice items before submission
+      const invoiceItems = formData.invoiceItems.map((item) => {
+        const { id, invoiceId, createdAt, updatedAt, ...itemData } = item;
+        return itemData;
+      });
+
       const payload: CreateInvoiceData = {
-        ...formData,
+        customerId: formData.customerId,
+        ticketId: formData.ticketId,
+        status: formData.status,
         subtotal,
         taxRate: formData.taxRate,
         discountAmount: formData.discountAmount,
+        notes: formData.notes,
+        invoiceItems,
       };
 
       let response;

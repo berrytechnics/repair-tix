@@ -237,7 +237,8 @@ export class InvoiceService {
     companyId: string,
     customerId?: string,
     status?: InvoiceStatus,
-    locationId?: string | null
+    locationId?: string | null,
+    ticketId?: string
   ): Promise<Invoice[]> {
     let query = db
       .selectFrom("invoices")
@@ -259,6 +260,10 @@ export class InvoiceService {
       } else {
         query = query.where("location_id", "=", locationId);
       }
+    }
+
+    if (ticketId) {
+      query = query.where("ticket_id", "=", ticketId);
     }
 
     const invoices = await query.execute();
