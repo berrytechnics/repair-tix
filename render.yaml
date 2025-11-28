@@ -1,15 +1,14 @@
 services:
   # PostgreSQL Database
-  - type: postgresql
+  - type: pg
     name: circuit-sage-db
     plan: free
-    databaseName: repair_business
-    databaseUser: repair_admin
+    ipAllowList: []
 
   # Backend API Service
   - type: web
     name: circuit-sage-api
-    env: docker
+    runtime: docker
     plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
@@ -49,7 +48,7 @@ services:
   # Frontend Web Service
   - type: web
     name: circuit-sage-frontend
-    env: docker
+    runtime: docker
     plan: free
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: .
