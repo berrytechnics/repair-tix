@@ -1,16 +1,16 @@
 import request from "supertest";
-import app from "../../app";
-import { cleanupTestData } from "../helpers/db.helper";
+import app from "../../app.js";
+import { cleanupTestData } from "../helpers/db.helper.js";
 import {
   createTestCompany,
   createTestUser,
   createTestInvitation,
   createTestLocation,
   assignUserToLocation,
-} from "../helpers/seed.helper";
-import { createAuthenticatedUser, createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
-import { db } from "../../config/connection";
-import invitationService from "../../services/invitation.service";
+} from "../helpers/seed.helper.js";
+import { createAuthenticatedUser, createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper.js";
+import { db } from "../../config/connection.js";
+import invitationService from "../../services/invitation.service.js";
 
 describe("User Routes Integration Tests", () => {
   let testCompanyIds: string[] = [];

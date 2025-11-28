@@ -1,22 +1,22 @@
 import express, { Request, Response } from "express";
 import {
   NotFoundError,
-} from "../config/errors";
-import { InvoiceStatus } from "../config/types";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireLocationContext } from "../middlewares/location.middleware";
-import { requireAdmin, requireRole } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import invoiceService from "../services/invoice.service";
-import { asyncHandler } from "../utils/asyncHandler";
+} from "../config/errors.js";
+import { InvoiceStatus } from "../config/types.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireLocationContext } from "../middlewares/location.middleware.js";
+import { requireAdmin, requireRole } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import invoiceService from "../services/invoice.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createInvoiceValidation,
   updateInvoiceValidation,
   createInvoiceItemValidation,
   updateInvoiceItemValidation,
   markInvoicePaidValidation,
-} from "../validators/invoice.validator";
+} from "../validators/invoice.validator.js";
 
 const router = express.Router();
 

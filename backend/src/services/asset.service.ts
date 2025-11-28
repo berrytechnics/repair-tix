@@ -1,8 +1,8 @@
 // src/services/asset.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { AssetTable } from "../config/types";
+import { db } from "../config/connection.js";
+import { AssetTable } from "../config/types.js";
 
 // Input DTOs
 export interface CreateAssetDto {

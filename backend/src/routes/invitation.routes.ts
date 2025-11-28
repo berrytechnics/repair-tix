@@ -1,12 +1,12 @@
 import express, { Request, Response } from "express";
-import { BadRequestError, NotFoundError } from "../config/errors";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireAdmin } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import invitationService from "../services/invitation.service";
-import { asyncHandler } from "../utils/asyncHandler";
-import { createInvitationValidation } from "../validators/invitation.validator";
+import { BadRequestError, NotFoundError } from "../config/errors.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireAdmin } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import invitationService from "../services/invitation.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { createInvitationValidation } from "../validators/invitation.validator.js";
 
 const router = express.Router();
 

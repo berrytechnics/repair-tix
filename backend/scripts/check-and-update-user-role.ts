@@ -4,9 +4,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "../src/config/connection";
-import userService from "../src/services/user.service";
-import permissionService from "../src/services/permission.service";
+import { db } from "../src/config/connection.js";
+import userService from "../src/services/user.service.js";
+import permissionService from "../src/services/permission.service.js";
 
 async function main() {
   const email = process.argv[2];

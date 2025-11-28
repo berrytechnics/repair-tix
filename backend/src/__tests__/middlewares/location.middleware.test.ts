@@ -1,17 +1,17 @@
 import { Request, Response, NextFunction } from "express";
-import { ForbiddenError } from "../../config/errors";
+import { ForbiddenError } from "../../config/errors.js";
 import {
   requireLocationContext,
   optionalLocationContext,
   userHasLocationAccess,
-} from "../../middlewares/location.middleware";
-import { UserWithoutPassword } from "../../services/user.service";
+} from "../../middlewares/location.middleware.js";
+import { UserWithoutPassword } from "../../services/user.service.js";
 import {
   createTestCompany,
   createTestUser,
   createTestLocation,
   assignUserToLocation,
-} from "../helpers/seed.helper";
+} from "../helpers/seed.helper.js";
 
 describe("Location Middleware", () => {
   let testCompanyId: string;

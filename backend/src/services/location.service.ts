@@ -1,8 +1,8 @@
 // src/services/location.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { LocationTable } from "../config/types";
+import { db } from "../config/connection.js";
+import { LocationTable } from "../config/types.js";
 
 // Input DTOs
 export interface CreateLocationDto {

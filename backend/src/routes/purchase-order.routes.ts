@@ -1,17 +1,17 @@
 import express, { Request, Response } from "express";
-import { NotFoundError } from "../config/errors";
-import { PurchaseOrderStatus } from "../config/types";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireManagerOrAdmin, requireRole } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import purchaseOrderService from "../services/purchase-order.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { NotFoundError } from "../config/errors.js";
+import { PurchaseOrderStatus } from "../config/types.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireManagerOrAdmin, requireRole } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import purchaseOrderService from "../services/purchase-order.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createPurchaseOrderValidation,
   receivePurchaseOrderValidation,
   updatePurchaseOrderValidation,
-} from "../validators/purchase-order.validator";
+} from "../validators/purchase-order.validator.js";
 
 const router = express.Router();
 

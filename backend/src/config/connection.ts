@@ -1,8 +1,8 @@
 // src/db/connection.ts
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
-import logger from "./logger";
-import { Database } from "./types";
+import logger from "./logger.js";
+import { Database } from "./types.js";
 
 // Create Kysely instance with environment variables taking precedence
 export const db = new Kysely<Database>({

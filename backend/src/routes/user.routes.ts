@@ -3,21 +3,21 @@ import {
   BadRequestError,
   NotFoundError,
   UnauthorizedError,
-} from "../config/errors";
-import { getPermissionsForRole, getPermissionsMatrix } from "../config/permissions";
-import { UserRole } from "../config/types";
-import permissionService from "../services/permission.service";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireAdmin } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import companyService from "../services/company.service";
-import invitationService from "../services/invitation.service";
-import locationService from "../services/location.service";
-import userService, { UserWithoutPassword } from "../services/user.service";
-import { asyncHandler } from "../utils/asyncHandler";
-import { generateNewJWTToken } from "../utils/auth";
-import { loginValidation, registerValidation } from "../validators/user.validator";
+} from "../config/errors.js";
+import { getPermissionsForRole, getPermissionsMatrix } from "../config/permissions.js";
+import { UserRole } from "../config/types.js";
+import permissionService from "../services/permission.service.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireAdmin } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import companyService from "../services/company.service.js";
+import invitationService from "../services/invitation.service.js";
+import locationService from "../services/location.service.js";
+import userService, { UserWithoutPassword } from "../services/user.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { generateNewJWTToken } from "../utils/auth.js";
+import { loginValidation, registerValidation } from "../validators/user.validator.js";
 
 const router = express.Router();
 

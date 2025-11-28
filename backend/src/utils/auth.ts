@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
-import logger from "../config/logger";
-import userService, { UserWithoutPassword } from "../services/user.service";
+import logger from "../config/logger.js";
+import userService, { UserWithoutPassword } from "../services/user.service.js";
 
 /** Generate a JWT token with the user and company_id. */
 export function generateNewJWTToken(user: UserWithoutPassword) {

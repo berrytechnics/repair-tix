@@ -1,9 +1,9 @@
 // src/services/ticket.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { TicketPriority, TicketStatus, TicketTable } from "../config/types";
-import assetService from "./asset.service";
+import { db } from "../config/connection.js";
+import { TicketPriority, TicketStatus, TicketTable } from "../config/types.js";
+import assetService from "./asset.service.js";
 
 // Input DTOs
 export interface CreateTicketDto {

@@ -2,18 +2,18 @@ import cors from "cors";
 import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
-import { HttpError, ValidationError } from "./config/errors";
-import logger from "./config/logger";
-import assetRoutes from "./routes/asset.routes";
-import customerRoutes from "./routes/customer.routes";
-import inventoryRoutes from "./routes/inventory.routes";
-import inventoryTransferRoutes from "./routes/inventory-transfer.routes";
-import invitationRoutes from "./routes/invitation.routes";
-import invoiceRoutes from "./routes/invoice.routes";
-import locationRoutes from "./routes/location.routes";
-import purchaseOrderRoutes from "./routes/purchase-order.routes";
-import ticketRoutes from "./routes/ticket.routes";
-import userRoutes from "./routes/user.routes";
+import { HttpError, ValidationError } from "./config/errors.js";
+import logger from "./config/logger.js";
+import assetRoutes from "./routes/asset.routes.js";
+import customerRoutes from "./routes/customer.routes.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
+import inventoryTransferRoutes from "./routes/inventory-transfer.routes.js";
+import invitationRoutes from "./routes/invitation.routes.js";
+import invoiceRoutes from "./routes/invoice.routes.js";
+import locationRoutes from "./routes/location.routes.js";
+import purchaseOrderRoutes from "./routes/purchase-order.routes.js";
+import ticketRoutes from "./routes/ticket.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 // Import routes
 

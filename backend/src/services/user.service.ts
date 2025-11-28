@@ -2,8 +2,8 @@
 import bcrypt from "bcryptjs";
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { UserRole, UserTable } from "../config/types";
+import { db } from "../config/connection.js";
+import { UserRole, UserTable } from "../config/types.js";
 
 // Input DTOs - keep these as they represent the API contract
 export interface CreateUserDto {

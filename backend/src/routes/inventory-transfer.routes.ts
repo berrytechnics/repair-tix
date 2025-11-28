@@ -1,17 +1,17 @@
 import express, { Request, Response } from "express";
-import { NotFoundError } from "../config/errors";
-import { InventoryTransferStatus } from "../config/types";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireLocationContext } from "../middlewares/location.middleware";
-import { requireManagerOrAdmin } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import inventoryTransferService from "../services/inventory-transfer.service";
-import { UserWithoutPassword } from "../services/user.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { NotFoundError } from "../config/errors.js";
+import { InventoryTransferStatus } from "../config/types.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireLocationContext } from "../middlewares/location.middleware.js";
+import { requireManagerOrAdmin } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import inventoryTransferService from "../services/inventory-transfer.service.js";
+import { UserWithoutPassword } from "../services/user.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createTransferValidation,
-} from "../validators/inventory-transfer.validator";
+} from "../validators/inventory-transfer.validator.js";
 
 const router = express.Router();
 

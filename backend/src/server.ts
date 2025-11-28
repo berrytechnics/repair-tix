@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
-import app from "./app";
-import { closeConnection, testConnection } from "./config/connection";
-import logger from "./config/logger";
+import app from "./app.js";
+import { closeConnection, testConnection } from "./config/connection.js";
+import logger from "./config/logger.js";
 
 // Load environment variables
 dotenv.config();

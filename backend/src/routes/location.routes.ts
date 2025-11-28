@@ -1,16 +1,16 @@
 import express, { Request, Response } from "express";
-import { NotFoundError } from "../config/errors";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireAdmin } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import locationService from "../services/location.service";
-import userService from "../services/user.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { NotFoundError } from "../config/errors.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireAdmin } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import locationService from "../services/location.service.js";
+import userService from "../services/user.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createLocationValidation,
   updateLocationValidation,
-} from "../validators/location.validator";
+} from "../validators/location.validator.js";
 
 const router = express.Router();
 

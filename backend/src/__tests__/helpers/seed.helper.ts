@@ -3,8 +3,8 @@ import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { UserRole, TicketStatus, TicketPriority, InvoiceStatus } from "../../config/types";
-import { db } from "../../config/connection";
+import { UserRole, TicketStatus, TicketPriority, InvoiceStatus } from "../../config/types.js";
+import { db } from "../../config/connection.js";
 
 /**
  * Create a test company in the database

@@ -1,7 +1,7 @@
 // Test database helper for cleanup and utilities
 import { Kysely } from "kysely";
-import { Database } from "../../config/types";
-import { db } from "../../config/connection";
+import { Database } from "../../config/types.js";
+import { db } from "../../config/connection.js";
 
 /**
  * Clean up test data by deleting records created during tests

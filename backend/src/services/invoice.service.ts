@@ -1,9 +1,9 @@
 // src/services/invoice.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { InvoiceStatus, InvoiceTable, InvoiceItemTable } from "../config/types";
-import { NotFoundError } from "../config/errors";
+import { db } from "../config/connection.js";
+import { InvoiceStatus, InvoiceTable, InvoiceItemTable } from "../config/types.js";
+import { NotFoundError } from "../config/errors.js";
 
 // Input DTOs
 export interface CreateInvoiceDto {

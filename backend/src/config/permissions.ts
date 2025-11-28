@@ -1,6 +1,6 @@
 // src/config/permissions.ts
-import permissionService from "../services/permission.service";
-import { UserRole } from "./types";
+import permissionService from "../services/permission.service.js";
+import { UserRole } from "./types.js";
 
 // Permission constants - all available permissions in the system
 export const PERMISSIONS = {

@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response, RequestHandler } from "express";
-import { ForbiddenError } from "../config/errors";
-import { UserRole } from "../config/types";
-import { UserWithoutPassword } from "../services/user.service";
+import { ForbiddenError } from "../config/errors.js";
+import { UserRole } from "../config/types.js";
+import { UserWithoutPassword } from "../services/user.service.js";
 
 /**
  * Middleware factory that checks if user has one of the specified roles

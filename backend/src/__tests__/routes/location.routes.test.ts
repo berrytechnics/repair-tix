@@ -1,12 +1,12 @@
 import request from "supertest";
-import app from "../../app";
-import { cleanupTestData } from "../helpers/db.helper";
+import app from "../../app.js";
+import { cleanupTestData } from "../helpers/db.helper.js";
 import {
   createTestCompany,
   createTestLocation,
   assignUserToLocation,
-} from "../helpers/seed.helper";
-import { createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
+} from "../helpers/seed.helper.js";
+import { createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper.js";
 
 describe("Location Routes Integration Tests", () => {
   let testCompanyId: string;

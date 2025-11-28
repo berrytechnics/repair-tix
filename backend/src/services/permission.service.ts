@@ -1,9 +1,9 @@
 // src/services/permission.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { ROLE_PERMISSIONS } from "../config/permissions";
-import { UserRole } from "../config/types";
+import { db } from "../config/connection.js";
+import { ROLE_PERMISSIONS } from "../config/permissions.js";
+import { UserRole } from "../config/types.js";
 
 class PermissionService {
   /**

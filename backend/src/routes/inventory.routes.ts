@@ -1,16 +1,16 @@
 import express, { Request, Response } from "express";
-import { NotFoundError } from "../config/errors";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireLocationContext } from "../middlewares/location.middleware";
-import { requireManagerOrAdmin, requireRole } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import inventoryService from "../services/inventory.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { NotFoundError } from "../config/errors.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireLocationContext } from "../middlewares/location.middleware.js";
+import { requireManagerOrAdmin, requireRole } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import inventoryService from "../services/inventory.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createInventoryValidation,
   updateInventoryValidation,
-} from "../validators/inventory.validator";
+} from "../validators/inventory.validator.js";
 
 const router = express.Router();
 

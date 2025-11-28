@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { verifyJWTToken } from "../utils/auth";
+import { verifyJWTToken } from "../utils/auth.js";
 
 /**
  * Middleware to validate JWT token from Authorization header

@@ -1,6 +1,6 @@
 // src/db/types.ts
 import { ColumnType } from "kysely";
-import { UserWithoutPassword } from "../services/user.service";
+import { UserWithoutPassword } from "../services/user.service.js";
 
 // Type helpers
 export type Timestamp = ColumnType<Date, string | undefined, Date | string>;

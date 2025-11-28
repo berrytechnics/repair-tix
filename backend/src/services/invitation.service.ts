@@ -2,8 +2,8 @@
 import crypto from "crypto";
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { InvitationTable, UserRole } from "../config/types";
+import { db } from "../config/connection.js";
+import { InvitationTable, UserRole } from "../config/types.js";
 
 // Input DTOs
 export interface CreateInvitationDto {

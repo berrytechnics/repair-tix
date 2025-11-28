@@ -1,12 +1,12 @@
-export { validateRequest } from "./auth.middleware";
+export { validateRequest } from "./auth.middleware.js";
 export {
   requireRole,
   requireAdmin,
   requireManagerOrAdmin,
   requireTechnicianOrAbove,
-} from "./rbac.middleware";
-export { requireTenantContext } from "./tenant.middleware";
-export { validate } from "./validation.middleware";
+} from "./rbac.middleware.js";
+export { requireTenantContext } from "./tenant.middleware.js";
+export { validate } from "./validation.middleware.js";
 
 
 

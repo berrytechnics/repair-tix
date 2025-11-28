@@ -1,7 +1,7 @@
 // Test teardown file
 // This runs after all tests complete to clean up resources
 
-import { closeConnection } from "../config/connection";
+import { closeConnection } from "../config/connection.js";
 
 export default async function globalTeardown(): Promise<void> {
   try {

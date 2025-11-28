@@ -1,10 +1,10 @@
 // src/services/purchase-order.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { BadRequestError, NotFoundError } from "../config/errors";
-import { PurchaseOrderStatus, PurchaseOrderTable, PurchaseOrderItemTable } from "../config/types";
-import inventoryService from "./inventory.service";
+import { db } from "../config/connection.js";
+import { BadRequestError, NotFoundError } from "../config/errors.js";
+import { PurchaseOrderStatus, PurchaseOrderTable, PurchaseOrderItemTable } from "../config/types.js";
+import inventoryService from "./inventory.service.js";
 
 // Input DTOs
 export interface CreatePurchaseOrderDto {

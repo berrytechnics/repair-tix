@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { ForbiddenError } from "../config/errors";
-import { UserWithoutPassword } from "../services/user.service";
-import { db } from "../config/connection";
+import { ForbiddenError } from "../config/errors.js";
+import { UserWithoutPassword } from "../services/user.service.js";
+import { db } from "../config/connection.js";
 
 /**
  * Helper function to check if user has access to a location

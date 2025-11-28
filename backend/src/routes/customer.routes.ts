@@ -2,20 +2,20 @@ import express, { Request, Response } from "express";
 import {
   BadRequestError,
   NotFoundError,
-} from "../config/errors";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireAdmin, requireRole } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import assetService from "../services/asset.service";
-import customerService from "../services/customer.service";
-import invoiceService from "../services/invoice.service";
-import ticketService from "../services/ticket.service";
-import { asyncHandler } from "../utils/asyncHandler";
+} from "../config/errors.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireAdmin, requireRole } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import assetService from "../services/asset.service.js";
+import customerService from "../services/customer.service.js";
+import invoiceService from "../services/invoice.service.js";
+import ticketService from "../services/ticket.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   createCustomerValidation,
   updateCustomerValidation,
-} from "../validators/customer.validator";
+} from "../validators/customer.validator.js";
 
 const router = express.Router();
 

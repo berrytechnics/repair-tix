@@ -1,8 +1,8 @@
 import request from "supertest";
-import app from "../../app";
-import { createAuthenticatedUser, createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
-import { cleanupTestData } from "../helpers/db.helper";
-import { createTestCompany, createTestCustomer, createTestTicket, createTestUser } from "../helpers/seed.helper";
+import app from "../../app.js";
+import { createAuthenticatedUser, createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper.js";
+import { cleanupTestData } from "../helpers/db.helper.js";
+import { createTestCompany, createTestCustomer, createTestTicket, createTestUser } from "../helpers/seed.helper.js";
 
 describe("Ticket Routes Integration Tests", () => {
   let testCompanyId: string;

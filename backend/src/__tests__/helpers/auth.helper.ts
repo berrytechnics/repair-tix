@@ -1,9 +1,9 @@
 // Authentication helpers for integration tests
-import { generateNewJWTToken } from "../../utils/auth";
-import { UserWithoutPassword } from "../../services/user.service";
-import { createTestUser, getUserById, createTestLocation, assignUserToLocation } from "./seed.helper";
-import { UserRole } from "../../config/types";
-import userService from "../../services/user.service";
+import { generateNewJWTToken } from "../../utils/auth.js";
+import { UserWithoutPassword } from "../../services/user.service.js";
+import { createTestUser, getUserById, createTestLocation, assignUserToLocation } from "./seed.helper.js";
+import { UserRole } from "../../config/types.js";
+import userService from "../../services/user.service.js";
 
 /**
  * Create a test user and return the user object and JWT token

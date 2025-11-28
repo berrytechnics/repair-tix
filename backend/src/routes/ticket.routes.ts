@@ -2,17 +2,17 @@ import express, { Request, Response } from "express";
 import {
     NotFoundError,
     BadRequestError,
-} from "../config/errors";
-import { TicketStatus } from "../config/types";
-import { validateRequest } from "../middlewares/auth.middleware";
-import { requireLocationContext } from "../middlewares/location.middleware";
-import { requireAdmin, requireRole } from "../middlewares/rbac.middleware";
-import { requireTenantContext } from "../middlewares/tenant.middleware";
-import { validate } from "../middlewares/validation.middleware";
-import ticketService from "../services/ticket.service";
-import customerService from "../services/customer.service";
-import userService, { UserWithoutPassword } from "../services/user.service";
-import { asyncHandler } from "../utils/asyncHandler";
+} from "../config/errors.js";
+import { TicketStatus } from "../config/types.js";
+import { validateRequest } from "../middlewares/auth.middleware.js";
+import { requireLocationContext } from "../middlewares/location.middleware.js";
+import { requireAdmin, requireRole } from "../middlewares/rbac.middleware.js";
+import { requireTenantContext } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validation.middleware.js";
+import ticketService from "../services/ticket.service.js";
+import customerService from "../services/customer.service.js";
+import userService, { UserWithoutPassword } from "../services/user.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {
     createTicketValidation,
     updateTicketValidation,
@@ -20,7 +20,7 @@ import {
     updateStatusValidation,
     addDiagnosticNotesValidation,
     addRepairNotesValidation,
-} from "../validators/ticket.validator";
+} from "../validators/ticket.validator.js";
 
 // Helper function to format user for response (same as in user.routes.ts)
 function formatUserForResponse(user: UserWithoutPassword) {

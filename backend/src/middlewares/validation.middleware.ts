@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ValidationChain, validationResult } from "express-validator";
-import { ValidationError } from "../config/errors";
+import { ValidationError } from "../config/errors.js";
 
 /**
  * Middleware to handle validation errors from express-validator

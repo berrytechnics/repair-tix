@@ -1,8 +1,8 @@
 import request from "supertest";
-import app from "../../app";
-import { cleanupTestData } from "../helpers/db.helper";
-import { createTestCompany, createTestCustomer } from "../helpers/seed.helper";
-import { createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper";
+import app from "../../app.js";
+import { cleanupTestData } from "../helpers/db.helper.js";
+import { createTestCompany, createTestCustomer } from "../helpers/seed.helper.js";
+import { createTestUsersWithRoles, getAuthHeader } from "../helpers/auth.helper.js";
 
 describe("Customer Routes Integration Tests", () => {
   let testCompanyId: string;

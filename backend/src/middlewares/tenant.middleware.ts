@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
-import { ForbiddenError } from "../config/errors";
-import { UserWithoutPassword } from "../services/user.service";
+import { ForbiddenError } from "../config/errors.js";
+import { UserWithoutPassword } from "../services/user.service.js";
 
 /**
  * Middleware to extract and validate tenant (company) context

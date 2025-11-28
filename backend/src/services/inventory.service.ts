@@ -1,9 +1,9 @@
 // src/services/inventory.service.ts
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../config/connection";
-import { BadRequestError } from "../config/errors";
-import { InventoryItemTable } from "../config/types";
+import { db } from "../config/connection.js";
+import { BadRequestError } from "../config/errors.js";
+import { InventoryItemTable } from "../config/types.js";
 
 // Input DTOs
 export interface CreateInventoryItemDto {
