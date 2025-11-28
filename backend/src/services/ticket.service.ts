@@ -23,6 +23,7 @@ export interface CreateTicketDto {
 
 export interface UpdateTicketDto {
   customerId?: string;
+  locationId?: string | null;
   technicianId?: string | null;
   status?: TicketStatus;
   priority?: TicketPriority;
@@ -42,6 +43,7 @@ export type Ticket = Omit<
   TicketTable,
   | "id"
   | "company_id"
+  | "location_id"
   | "ticket_number"
   | "customer_id"
   | "technician_id"
@@ -59,6 +61,7 @@ export type Ticket = Omit<
   | "deleted_at"
 > & {
   id: string;
+  locationId: string | null;
   ticketNumber: string;
   customerId: string;
   technicianId: string | null;
@@ -79,6 +82,7 @@ export type Ticket = Omit<
 function toTicket(ticket: {
   id: string;
   company_id: string;
+  location_id: string | null;
   ticket_number: string;
   customer_id: string;
   technician_id: string | null;
@@ -99,6 +103,7 @@ function toTicket(ticket: {
 }): Ticket {
   return {
     id: ticket.id as string,
+    locationId: ticket.location_id as string | null,
     ticketNumber: ticket.ticket_number,
     customerId: ticket.customer_id,
     technicianId: ticket.technician_id,
@@ -144,7 +149,12 @@ async function generateTicketNumber(companyId: string): Promise<string> {
 }
 
 export class TicketService {
-  async findAll(companyId: string, customerId?: string, status?: TicketStatus): Promise<Ticket[]> {
+  async findAll(
+    companyId: string,
+    customerId?: string,
+    status?: TicketStatus,
+    locationId?: string | null
+  ): Promise<Ticket[]> {
     let query = db
       .selectFrom("tickets")
       .selectAll()
@@ -157,6 +167,14 @@ export class TicketService {
 
     if (status) {
       query = query.where("status", "=", status);
+    }
+
+    if (locationId !== undefined) {
+      if (locationId === null) {
+        query = query.where("location_id", "is", null);
+      } else {
+        query = query.where("location_id", "=", locationId);
+      }
     }
 
     const tickets = await query.execute();
@@ -175,7 +193,20 @@ export class TicketService {
     return ticket ? toTicket(ticket) : null;
   }
 
-  async create(data: CreateTicketDto, companyId: string): Promise<Ticket> {
+  async create(data: CreateTicketDto, companyId: string, locationId: string): Promise<Ticket> {
+    // Verify location belongs to company
+    const location = await db
+      .selectFrom("locations")
+      .select("id")
+      .where("id", "=", locationId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!location) {
+      throw new Error("Location not found or does not belong to company");
+    }
+
     // Generate unique ticket number for this company
     const ticketNumber = await generateTicketNumber(companyId);
 
@@ -184,6 +215,7 @@ export class TicketService {
       .values({
         id: uuidv4(),
         company_id: companyId,
+        location_id: locationId,
         ticket_number: ticketNumber,
         customer_id: data.customerId,
         technician_id: data.technicianId || null,
@@ -224,6 +256,23 @@ export class TicketService {
 
     if (data.customerId !== undefined) {
       updateQuery = updateQuery.set({ customer_id: data.customerId });
+    }
+    if (data.locationId !== undefined) {
+      // If setting location, verify it belongs to company
+      if (data.locationId !== null) {
+        const location = await db
+          .selectFrom("locations")
+          .select("id")
+          .where("id", "=", data.locationId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!location) {
+          throw new Error("Location not found or does not belong to company");
+        }
+      }
+      updateQuery = updateQuery.set({ location_id: data.locationId });
     }
     if (data.technicianId !== undefined) {
       updateQuery = updateQuery.set({ technician_id: data.technicianId || null });

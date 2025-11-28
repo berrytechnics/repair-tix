@@ -15,6 +15,7 @@ export async function cleanupTestData(testIds: {
   invoiceIds?: string[];
   invoiceItemIds?: string[];
   invitationIds?: string[];
+  locationIds?: string[];
 }): Promise<void> {
   // Delete in reverse order of dependencies
   // 1. Delete invoice items first (they depend on invoices)
@@ -93,19 +94,57 @@ export async function cleanupTestData(testIds: {
       .where("id", "in", testIds.customerIds)
       .execute();
   }
-  // 5. Delete invitations (they depend on companies and users)
+  // 5. Delete user_locations (they depend on users and locations)
+  if (testIds.userIds && testIds.userIds.length > 0) {
+    await db
+      .deleteFrom("user_locations")
+      .where("user_id", "in", testIds.userIds)
+      .execute();
+  }
+  if (testIds.locationIds && testIds.locationIds.length > 0) {
+    await db
+      .deleteFrom("user_locations")
+      .where("location_id", "in", testIds.locationIds)
+      .execute();
+  }
+  // 6. Delete invitations (they depend on companies and users)
   if (testIds.invitationIds && testIds.invitationIds.length > 0) {
     await db
       .deleteFrom("invitations")
       .where("id", "in", testIds.invitationIds)
       .execute();
   }
+  // 7. Delete users (must delete ALL users for companies, not just tracked ones)
+  // First delete tracked users
   if (testIds.userIds && testIds.userIds.length > 0) {
     await db
       .deleteFrom("users")
       .where("id", "in", testIds.userIds)
       .execute();
   }
+  // Then delete all remaining users for companies we're cleaning up
+  if (testIds.companyIds && testIds.companyIds.length > 0) {
+    await db
+      .deleteFrom("users")
+      .where("company_id", "in", testIds.companyIds)
+      .execute();
+  }
+  // 8. Delete locations (they depend on companies)
+  // First delete tracked locations
+  if (testIds.locationIds && testIds.locationIds.length > 0) {
+    await db
+      .deleteFrom("locations")
+      .where("id", "in", testIds.locationIds)
+      .execute();
+  }
+  // Then delete all remaining locations for companies we're cleaning up
+  if (testIds.companyIds && testIds.companyIds.length > 0) {
+    await db
+      .deleteFrom("locations")
+      .where("company_id", "in", testIds.companyIds)
+      .execute();
+  }
+  // 9. Delete companies (now safe since all dependent records are deleted)
   if (testIds.companyIds && testIds.companyIds.length > 0) {
     await db
       .deleteFrom("companies")

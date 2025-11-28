@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { NotFoundError } from "../config/errors";
 import { validateRequest } from "../middlewares/auth.middleware";
+import { requireLocationContext } from "../middlewares/location.middleware";
 import { requireManagerOrAdmin, requireRole } from "../middlewares/rbac.middleware";
 import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
@@ -20,10 +21,12 @@ router.use(requireTenantContext);
 // GET /api/inventory - List all inventory items (with optional search)
 router.get(
   "/",
+  requireLocationContext,
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
+    const locationId = req.locationId!;
     const searchQuery = req.query.query as string | undefined;
-    const items = await inventoryService.findAll(companyId, searchQuery);
+    const items = await inventoryService.findAll(companyId, searchQuery, locationId);
     res.json({ success: true, data: items });
   })
 );
@@ -45,11 +48,13 @@ router.get(
 // POST /api/inventory - Create inventory item (admin/manager only)
 router.post(
   "/",
+  requireLocationContext,
   validate(createInventoryValidation),
   requireManagerOrAdmin(),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const item = await inventoryService.create(req.body, companyId);
+    const locationId = req.locationId!;
+    const item = await inventoryService.create(req.body, companyId, locationId);
     res.status(201).json({ success: true, data: item });
   })
 );
@@ -57,6 +62,7 @@ router.post(
 // PUT /api/inventory/:id - Update inventory item (admin/manager only)
 router.put(
   "/:id",
+  requireLocationContext,
   validate(updateInventoryValidation),
   requireManagerOrAdmin(),
   asyncHandler(async (req: Request, res: Response) => {
@@ -74,6 +80,7 @@ router.put(
 // Validates that quantity is 0 before deletion
 router.delete(
   "/:id",
+  requireLocationContext,
   requireRole(["admin"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;

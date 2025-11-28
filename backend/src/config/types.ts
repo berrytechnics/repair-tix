@@ -19,11 +19,14 @@ export interface Database {
   invoices: InvoiceTable;
   invoice_items: InvoiceItemTable;
   invitations: InvitationTable;
+  locations: LocationTable;
   purchase_orders: PurchaseOrderTable;
   purchase_order_items: PurchaseOrderItemTable;
   role_permissions: RolePermissionTable;
   tickets: TicketTable;
+  user_locations: UserLocationTable;
   users: UserTable;
+  inventory_transfers: InventoryTransferTable;
 }
 
 // Table definitions
@@ -59,6 +62,7 @@ export interface CustomerTable {
 export interface InventoryItemTable {
   id: UUID;
   company_id: UUID;
+  location_id: UUID | null;
   sku: string;
   name: string;
   description: string | null;
@@ -90,6 +94,7 @@ export type InvoiceStatus =
 export interface InvoiceTable {
   id: UUID;
   company_id: UUID;
+  location_id: UUID | null;
   invoice_number: string;
   customer_id: UUID;
   ticket_id: UUID | null;
@@ -137,6 +142,7 @@ export type TicketPriority = "low" | "medium" | "high" | "urgent";
 export interface TicketTable {
   id: UUID;
   company_id: UUID;
+  location_id: UUID | null;
   ticket_number: string;
   customer_id: UUID;
   technician_id: UUID | null;
@@ -216,9 +222,44 @@ export interface RolePermissionTable {
   updated_at: Timestamp;
 }
 
+export interface LocationTable {
+  id: UUID;
+  company_id: UUID;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
+export interface UserLocationTable {
+  user_id: UUID;
+  location_id: UUID;
+  created_at: Timestamp;
+}
+
+export type InventoryTransferStatus = "pending" | "completed" | "cancelled";
+
+export interface InventoryTransferTable {
+  id: UUID;
+  from_location_id: UUID;
+  to_location_id: UUID;
+  inventory_item_id: UUID;
+  quantity: number;
+  transferred_by: UUID;
+  status: InventoryTransferStatus;
+  notes: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
 export interface UserTable {
   id: UUID;
   company_id: UUID;
+  current_location_id: UUID | null;
   first_name: string;
   last_name: string;
   email: string;
@@ -230,12 +271,13 @@ export interface UserTable {
   deleted_at: SoftDelete;
 }
 
-// Extend Express Request interface to include user and companyId property
+// Extend Express Request interface to include user, companyId, and locationId property
 declare global {
   namespace Express {
     interface Request {
       user?: UserWithoutPassword;
       companyId?: string;
+      locationId?: string;
     }
   }
 }

@@ -1,4 +1,4 @@
-import { RequestHandler } from "express";
+import { NextFunction, Request, Response, RequestHandler } from "express";
 import { ForbiddenError } from "../config/errors";
 import { UserRole } from "../config/types";
 import { UserWithoutPassword } from "../services/user.service";
@@ -8,22 +8,26 @@ import { UserWithoutPassword } from "../services/user.service";
  * Must be used after validateRequest and requireTenantContext middleware
  */
 export function requireRole(roles: UserRole | UserRole[]): RequestHandler {
-  return (req, res, next) => {
-    const user = req.user as UserWithoutPassword | undefined;
-    
-    if (!user) {
-      throw new ForbiddenError("Authentication required");
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user as UserWithoutPassword | undefined;
+      
+      if (!user) {
+        return next(new ForbiddenError("Authentication required"));
+      }
+      
+      const allowedRoles = Array.isArray(roles) ? roles : [roles];
+      
+      if (!allowedRoles.includes(user.role)) {
+        return next(new ForbiddenError(
+          `Access denied. Required role: ${allowedRoles.join(" or ")}`
+        ));
+      }
+      
+      next();
+    } catch (error) {
+      next(error);
     }
-    
-    const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    
-    if (!allowedRoles.includes(user.role)) {
-      throw new ForbiddenError(
-        `Access denied. Required role: ${allowedRoles.join(" or ")}`
-      );
-    }
-    
-    next();
   };
 }
 

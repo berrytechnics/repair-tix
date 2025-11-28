@@ -40,6 +40,58 @@ export async function createTestCompany(
 }
 
 /**
+ * Create a test location in the database
+ */
+export async function createTestLocation(
+  companyId: string,
+  overrides?: {
+    name?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    isActive?: boolean;
+  }
+): Promise<string> {
+  const locationId = uuidv4();
+
+  await db
+    .insertInto("locations")
+    .values({
+      id: locationId,
+      company_id: companyId,
+      name: overrides?.name || "Test Location",
+      address: overrides?.address || null,
+      phone: overrides?.phone || null,
+      email: overrides?.email || null,
+      is_active: overrides?.isActive !== undefined ? overrides.isActive : true,
+      created_at: sql`now()`,
+      updated_at: sql`now()`,
+      deleted_at: null,
+    })
+    .execute();
+
+  return locationId;
+}
+
+/**
+ * Assign a user to a location
+ */
+export async function assignUserToLocation(
+  userId: string,
+  locationId: string
+): Promise<void> {
+  await db
+    .insertInto("user_locations")
+    .values({
+      user_id: userId,
+      location_id: locationId,
+      created_at: sql`now()`,
+    })
+    .onConflict((oc) => oc.doNothing())
+    .execute();
+}
+
+/**
  * Create a test user in the database
  */
 export async function createTestUser(
@@ -51,6 +103,7 @@ export async function createTestUser(
     password?: string;
     role?: UserRole;
     active?: boolean;
+    currentLocationId?: string | null;
   }
 ): Promise<string> {
   const userId = uuidv4();
@@ -61,6 +114,7 @@ export async function createTestUser(
     .values({
       id: userId,
       company_id: companyId,
+      current_location_id: overrides?.currentLocationId || null,
       first_name: overrides?.firstName || "Test",
       last_name: overrides?.lastName || "User",
       email: overrides?.email || `test-${userId}@example.com`,
@@ -168,6 +222,7 @@ export async function createTestTicket(
   companyId: string,
   customerId: string,
   overrides?: {
+    locationId?: string | null;
     technicianId?: string | null;
     status?: TicketStatus;
     priority?: TicketPriority;
@@ -190,6 +245,7 @@ export async function createTestTicket(
     .values({
       id: ticketId,
       company_id: companyId,
+      location_id: overrides?.locationId || null,
       ticket_number: ticketNumber,
       customer_id: customerId,
       technician_id: overrides?.technicianId || null,
@@ -224,6 +280,7 @@ export async function createTestInvoice(
   companyId: string,
   customerId: string,
   overrides?: {
+    locationId?: string | null;
     ticketId?: string | null;
     status?: InvoiceStatus;
     subtotal?: number;
@@ -253,6 +310,7 @@ export async function createTestInvoice(
     .values({
       id: invoiceId,
       company_id: companyId,
+      location_id: overrides?.locationId || null,
       invoice_number: invoiceNumber,
       customer_id: customerId,
       ticket_id: overrides?.ticketId || null,

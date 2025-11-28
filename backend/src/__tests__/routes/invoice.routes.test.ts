@@ -14,6 +14,7 @@ describe("Invoice Routes Integration Tests", () => {
   let authToken: string;
   let adminToken: string;
   let managerToken: string;
+  let testLocationId: string;
 
   beforeEach(async () => {
     // Create test company
@@ -22,15 +23,17 @@ describe("Invoice Routes Integration Tests", () => {
     // Create test users with different roles
     const users = await createTestUsersWithRoles(testCompanyId);
     testUserIds.push(users.admin.userId, users.frontdesk.userId, users.technician.userId);
+    testLocationId = users.locationId; // Store location ID for use in tests
     
     authToken = users.technician.token;
     adminToken = users.admin.token;
 
-    // Create manager user
+    // Create manager user and assign to the same location
     const managerUser = await createAuthenticatedUser(testCompanyId, "manager", {
       email: "manager@test.com",
       firstName: "Manager",
       lastName: "User",
+      locationId: users.locationId, // Use the same location as other test users
     });
     testUserIds.push(managerUser.userId);
     managerToken = managerUser.token;
@@ -68,8 +71,9 @@ describe("Invoice Routes Integration Tests", () => {
       });
       testCustomerIds.push(customer1Id, customer2Id);
 
-      // Create test invoices
+      // Create test invoices with the user's current location
       const invoice1Id = await createTestInvoice(testCompanyId, customer1Id, {
+        locationId: testLocationId,
         status: "issued",
         subtotal: 100.0,
         taxRate: 8.5,
@@ -77,6 +81,7 @@ describe("Invoice Routes Integration Tests", () => {
         totalAmount: 108.5,
       });
       const invoice2Id = await createTestInvoice(testCompanyId, customer2Id, {
+        locationId: testLocationId,
         status: "draft",
         subtotal: 50.0,
         taxRate: 8.5,
@@ -103,6 +108,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "issued",
       });
       testInvoiceIds.push(invoiceId);
@@ -126,6 +132,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "paid",
       });
       testInvoiceIds.push(invoiceId);
@@ -167,6 +174,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "paid",
         subtotal: 100.0,
         taxRate: 8.5,
@@ -261,6 +269,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "issued",
       });
       testInvoiceIds.push(invoiceId);
@@ -301,7 +310,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const response = await request(app)
@@ -336,7 +347,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const itemData = {
@@ -368,7 +381,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const response = await request(app)
@@ -407,7 +422,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const itemId = await createTestInvoiceItem(invoiceId, {
@@ -440,7 +457,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const fakeItemId = "00000000-0000-0000-0000-000000000000";
@@ -458,7 +477,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const itemId = await createTestInvoiceItem(invoiceId);
@@ -481,7 +502,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const itemId = await createTestInvoiceItem(invoiceId, {
@@ -504,7 +527,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const fakeItemId = "00000000-0000-0000-0000-000000000000";
@@ -524,6 +549,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "issued",
       });
       testInvoiceIds.push(invoiceId);
@@ -551,7 +577,9 @@ describe("Invoice Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const invoiceId = await createTestInvoice(testCompanyId, customerId);
+      const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testInvoiceIds.push(invoiceId);
 
       const response = await request(app)
@@ -586,6 +614,7 @@ describe("Invoice Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const invoiceId = await createTestInvoice(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "issued",
       });
       testInvoiceIds.push(invoiceId);

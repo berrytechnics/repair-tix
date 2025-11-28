@@ -19,8 +19,11 @@ module.exports = {
     '^src/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+  globalTeardown: '<rootDir>/src/__tests__/teardown.ts',
   testTimeout: 30000, // Increased timeout for integration tests with real database
   // Skip tests if no test files found (for CI)
   passWithNoTests: true,
+  // Force Jest to exit after tests complete to prevent hanging on open handles
+  forceExit: true,
 };
 

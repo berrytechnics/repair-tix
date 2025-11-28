@@ -5,6 +5,7 @@ import {
 } from "../config/errors";
 import { TicketStatus } from "../config/types";
 import { validateRequest } from "../middlewares/auth.middleware";
+import { requireLocationContext } from "../middlewares/location.middleware";
 import { requireAdmin, requireRole } from "../middlewares/rbac.middleware";
 import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
@@ -49,14 +50,17 @@ router.use(requireTenantContext);
 // GET /ticket - List all tickets (with optional filters)
 router.get(
   "/",
+  requireLocationContext,
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
+    const locationId = req.locationId!;
     const customerId = req.query.customerId as string | undefined;
     const status = req.query.status as TicketStatus | undefined;
     const tickets = await ticketService.findAll(
       companyId,
       customerId,
-      status
+      status,
+      locationId
     );
 
     // Populate customer and technician data for each ticket
@@ -146,11 +150,13 @@ router.get(
 // POST /ticket - Create new ticket
 router.post(
   "/",
+  requireLocationContext,
   validate(createTicketValidation),
   requireRole(["admin", "technician", "frontdesk"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const ticket = await ticketService.create(req.body, companyId);
+    const locationId = req.locationId!;
+    const ticket = await ticketService.create(req.body, companyId, locationId);
     res.status(201).json({ success: true, data: ticket });
   })
 );
@@ -158,6 +164,7 @@ router.post(
 // PUT /ticket/:id - Update ticket
 router.put(
   "/:id",
+  requireLocationContext,
   validate(updateTicketValidation),
   requireRole(["admin", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -174,6 +181,7 @@ router.put(
 // POST /ticket/:id/assign - Assign technician to ticket
 router.post(
   "/:id/assign",
+  requireLocationContext,
   validate(assignTechnicianValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -228,6 +236,7 @@ router.post(
 // POST /ticket/:id/status - Update ticket status
 router.post(
   "/:id/status",
+  requireLocationContext,
   validate(updateStatusValidation),
   requireRole(["admin", "technician", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -250,6 +259,7 @@ router.post(
 // POST /ticket/:id/diagnostic-notes - Add diagnostic notes
 router.post(
   "/:id/diagnostic-notes",
+  requireLocationContext,
   validate(addDiagnosticNotesValidation),
   requireRole(["admin", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -272,6 +282,7 @@ router.post(
 // POST /ticket/:id/repair-notes - Add repair notes
 router.post(
   "/:id/repair-notes",
+  requireLocationContext,
   validate(addRepairNotesValidation),
   requireRole(["admin", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -294,6 +305,7 @@ router.post(
 // DELETE /ticket/:id - Delete ticket (soft delete)
 router.delete(
   "/:id",
+  requireLocationContext,
   requireAdmin(),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;

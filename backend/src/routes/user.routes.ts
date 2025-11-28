@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import {
   BadRequestError,
+  NotFoundError,
   UnauthorizedError,
 } from "../config/errors";
 import { getPermissionsForRole, getPermissionsMatrix } from "../config/permissions";
@@ -12,6 +13,7 @@ import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
 import companyService from "../services/company.service";
 import invitationService from "../services/invitation.service";
+import locationService from "../services/location.service";
 import userService, { UserWithoutPassword } from "../services/user.service";
 import { asyncHandler } from "../utils/asyncHandler";
 import { generateNewJWTToken } from "../utils/auth";
@@ -25,6 +27,7 @@ function formatUserForResponse(user: UserWithoutPassword) {
   // Type assertion needed because TypeScript types don't match runtime structure
   const userWithSnakeCase = user as unknown as {
     id: string;
+    current_location_id?: string | null;
     first_name: string;
     last_name: string;
     email: string;
@@ -33,6 +36,7 @@ function formatUserForResponse(user: UserWithoutPassword) {
   
   return {
     id: userWithSnakeCase.id,
+    currentLocationId: userWithSnakeCase.current_location_id || null,
     firstName: userWithSnakeCase.first_name,
     lastName: userWithSnakeCase.last_name,
     email: userWithSnakeCase.email,
@@ -253,6 +257,170 @@ router.put(
     res.json({
       success: true,
       message: `Permissions updated for role: ${role}`,
+    });
+  })
+);
+
+// POST /api/users/:id/locations - Assign user to location (admin only)
+router.post(
+  "/:id/locations",
+  validateRequest,
+  requireTenantContext,
+  requireAdmin(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId!;
+    const { id: userId } = req.params;
+    const { locationId } = req.body;
+
+    if (!locationId) {
+      throw new BadRequestError("locationId is required");
+    }
+
+    const assigned = await userService.assignLocation(userId, locationId, companyId);
+    if (!assigned) {
+      throw new NotFoundError("User or location not found, or user does not belong to company");
+    }
+
+    res.json({
+      success: true,
+      data: { message: "User assigned to location successfully" },
+    });
+  })
+);
+
+// DELETE /api/users/:id/locations/:locationId - Remove user from location (admin only)
+router.delete(
+  "/:id/locations/:locationId",
+  validateRequest,
+  requireTenantContext,
+  requireAdmin(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId!;
+    const { id: userId, locationId } = req.params;
+
+    const removed = await userService.removeLocation(userId, locationId, companyId);
+    if (!removed) {
+      throw new NotFoundError("User or location not found, or user does not belong to company");
+    }
+
+    res.json({
+      success: true,
+      data: { message: "User removed from location successfully" },
+    });
+  })
+);
+
+// PUT /api/users/me/location - Set current location (user can set their own)
+// Must be defined before /:id routes to avoid matching "me" as an ID
+router.put(
+  "/me/location",
+  validateRequest,
+  requireTenantContext,
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId!;
+    const currentUser = req.user as UserWithoutPassword | undefined;
+
+    if (!currentUser) {
+      throw new UnauthorizedError("User not found");
+    }
+
+    const { locationId } = req.body;
+
+    const updated = await userService.setCurrentLocation(
+      currentUser.id,
+      locationId || null,
+      companyId
+    );
+
+    if (!updated) {
+      throw new BadRequestError("Failed to set current location. Location may not exist or you may not have access to it.");
+    }
+
+    // Fetch updated user to return
+    const updatedUser = await userService.findById(currentUser.id);
+    if (!updatedUser) {
+      throw new NotFoundError("User not found");
+    }
+
+    res.json({
+      success: true,
+      data: {
+        currentLocationId: updatedUser.current_location_id as string | null,
+        message: "Current location updated successfully",
+      },
+    });
+  })
+);
+
+// GET /api/users/me/locations - Get current user's available locations
+// Must be defined before /:id routes to avoid matching "me" as an ID
+router.get(
+  "/me/locations",
+  validateRequest,
+  requireTenantContext,
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId!;
+    const currentUser = req.user as UserWithoutPassword | undefined;
+
+    if (!currentUser) {
+      throw new UnauthorizedError("User not found");
+    }
+
+    // Admins see all company locations, others see only assigned locations
+    try {
+      if (currentUser.role === "admin") {
+        const allLocations = await locationService.findAll(companyId);
+        res.json({
+          success: true,
+          data: allLocations.map((loc) => ({ 
+            id: loc.id as unknown as string, 
+            name: loc.name 
+          })),
+        });
+      } else {
+        const locations = await userService.getUserLocations(currentUser.id, companyId);
+        res.json({
+          success: true,
+          data: locations,
+        });
+      }
+    } catch (error) {
+      // If locations table doesn't exist yet (migration not run), return empty array
+      if (error instanceof Error && error.message.includes("does not exist")) {
+        res.json({
+          success: true,
+          data: [],
+        });
+      } else {
+        throw error;
+      }
+    }
+  })
+);
+
+// GET /api/users/:id/locations - Get user's assigned locations (admin can view any user, users can view their own)
+router.get(
+  "/:id/locations",
+  validateRequest,
+  requireTenantContext,
+  asyncHandler(async (req: Request, res: Response) => {
+    const companyId = req.companyId!;
+    const { id: userId } = req.params;
+    const currentUser = req.user as UserWithoutPassword | undefined;
+
+    if (!currentUser) {
+      throw new UnauthorizedError("User not found");
+    }
+
+    // Users can only view their own locations unless they're admin
+    if (currentUser.role !== "admin" && currentUser.id !== userId) {
+      throw new UnauthorizedError("You can only view your own locations");
+    }
+
+    const locations = await userService.getUserLocations(userId, companyId);
+    res.json({
+      success: true,
+      data: locations,
     });
   })
 );

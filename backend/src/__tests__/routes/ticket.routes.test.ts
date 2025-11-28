@@ -13,6 +13,7 @@ describe("Ticket Routes Integration Tests", () => {
   let adminToken: string;
   let managerToken: string;
   let technicianUserId: string;
+  let testLocationId: string;
 
   beforeEach(async () => {
     // Create test company
@@ -21,16 +22,18 @@ describe("Ticket Routes Integration Tests", () => {
     // Create test users with different roles
     const users = await createTestUsersWithRoles(testCompanyId);
     testUserIds.push(users.admin.userId, users.frontdesk.userId, users.technician.userId);
+    testLocationId = users.locationId; // Store location ID for use in tests
     
     authToken = users.technician.token;
     adminToken = users.admin.token;
     technicianUserId = users.technician.userId;
 
-    // Create manager user
+    // Create manager user and assign to the same location
     const managerUser = await createAuthenticatedUser(testCompanyId, "manager", {
       email: "manager@test.com",
       firstName: "Manager",
       lastName: "User",
+      locationId: users.locationId, // Use the same location as other test users
     });
     testUserIds.push(managerUser.userId);
     managerToken = managerUser.token;
@@ -64,8 +67,9 @@ describe("Ticket Routes Integration Tests", () => {
       });
       testCustomerIds.push(customer1Id, customer2Id);
 
-      // Create test tickets
+      // Create test tickets with the user's current location
       const ticket1Id = await createTestTicket(testCompanyId, customer1Id, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         deviceBrand: "Apple",
         deviceModel: "iPhone 13",
@@ -73,6 +77,7 @@ describe("Ticket Routes Integration Tests", () => {
         priority: "high",
       });
       const ticket2Id = await createTestTicket(testCompanyId, customer2Id, {
+        locationId: testLocationId,
         deviceType: "Laptop",
         deviceBrand: "Dell",
         deviceModel: "XPS 15",
@@ -102,6 +107,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         status: "new",
       });
@@ -126,6 +132,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         status: "completed",
       });
@@ -168,6 +175,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         deviceBrand: "Apple",
         deviceModel: "iPhone 13",
@@ -260,6 +268,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         status: "in_progress",
       });
@@ -291,6 +300,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
         priority: "medium",
       });
@@ -319,6 +329,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         deviceType: "Smartphone",
       });
       testTicketIds.push(ticketId);
@@ -340,7 +351,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -371,7 +384,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -407,6 +422,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "new",
       });
       testTicketIds.push(ticketId);
@@ -428,6 +444,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         technicianId: technicianUserId,
         status: "assigned",
       });
@@ -459,7 +476,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const fakeTechnicianId = "00000000-0000-0000-0000-000000000000";
@@ -477,7 +496,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       // Create a frontdesk user
@@ -504,6 +525,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "new",
       });
       testTicketIds.push(ticketId);
@@ -525,6 +547,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         status: "new",
       });
       testTicketIds.push(ticketId);
@@ -555,7 +578,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -572,7 +597,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -589,7 +616,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const validStatuses = ["new", "assigned", "in_progress", "on_hold", "completed", "cancelled"];
@@ -612,6 +641,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         diagnosticNotes: null,
       });
       testTicketIds.push(ticketId);
@@ -631,6 +661,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         diagnosticNotes: "Initial check completed",
       });
       testTicketIds.push(ticketId);
@@ -662,7 +693,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -679,7 +712,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -696,7 +731,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const longNotes = "a".repeat(10001);
@@ -717,6 +754,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         repairNotes: null,
       });
       testTicketIds.push(ticketId);
@@ -736,6 +774,7 @@ describe("Ticket Routes Integration Tests", () => {
       testCustomerIds.push(customerId);
 
       const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
         repairNotes: "Screen replaced",
       });
       testTicketIds.push(ticketId);
@@ -767,7 +806,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -784,7 +825,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const response = await request(app)
@@ -801,7 +844,9 @@ describe("Ticket Routes Integration Tests", () => {
       const customerId = await createTestCustomer(testCompanyId);
       testCustomerIds.push(customerId);
 
-      const ticketId = await createTestTicket(testCompanyId, customerId);
+      const ticketId = await createTestTicket(testCompanyId, customerId, {
+        locationId: testLocationId,
+      });
       testTicketIds.push(ticketId);
 
       const longNotes = "a".repeat(10001);

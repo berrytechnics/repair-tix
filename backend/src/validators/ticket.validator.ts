@@ -155,6 +155,20 @@ export const updateTicketValidation = [
     .optional()
     .isISO8601()
     .withMessage("Completed date must be a valid ISO 8601 date"),
+  body("locationId")
+    .optional({ values: "falsy" })
+    .custom((value) => {
+      // If empty string, null, or undefined, skip validation (allows unsetting location)
+      if (!value || value === "") {
+        return true;
+      }
+      // Otherwise, validate as UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Location ID must be a valid UUID");
+      }
+      return true;
+    }),
 ];
 
 /**

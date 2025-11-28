@@ -12,6 +12,7 @@ import {
   ClipboardDocumentIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
+  MapPinIcon,
   MoonIcon,
   ShieldCheckIcon,
   ShoppingBagIcon,
@@ -23,6 +24,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import LocationSwitcher from "./LocationSwitcher";
 
 interface SidebarLinkProps {
   href: string;
@@ -113,11 +115,22 @@ export default function Sidebar() {
       icon: <Cog6ToothIcon className="w-6 h-6" />,
       permission: "settings.access",
     },
+    {
+      href: "/locations",
+      label: "Locations",
+      icon: <MapPinIcon className="w-6 h-6" />,
+      permission: "settings.access", // Admin only, checked below
+      adminOnly: true,
+    },
   ];
 
   // Filter navigation based on user permissions
   const navigation = allNavigationItems.filter((item) => {
     if (!user) return false;
+    // Check admin-only items
+    if ((item as any).adminOnly && user.role !== "admin") {
+      return false;
+    }
     return hasPermission(item.permission);
   });
 
@@ -254,6 +267,15 @@ export default function Sidebar() {
               />
             )}
           </nav>
+
+          {/* Location Switcher */}
+          {user && (
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="px-3 py-2">
+                <LocationSwitcher />
+              </div>
+            </div>
+          )}
 
           {/* User profile */}
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">

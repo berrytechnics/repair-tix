@@ -30,6 +30,7 @@ export interface ApiResponse<T> {
 // Types for auth
 export interface User {
   id: string;
+  currentLocationId?: string | null;
   firstName: string;
   lastName: string;
   email: string;

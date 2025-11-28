@@ -221,4 +221,18 @@ export const updateInvoiceValidation = [
     .trim()
     .isLength({ max: 100 })
     .withMessage("Payment reference must not exceed 100 characters"),
+  body("locationId")
+    .optional({ values: "falsy" })
+    .custom((value) => {
+      // If empty string, null, or undefined, skip validation (allows unsetting location)
+      if (!value || value === "") {
+        return true;
+      }
+      // Otherwise, validate as UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Location ID must be a valid UUID");
+      }
+      return true;
+    }),
 ];

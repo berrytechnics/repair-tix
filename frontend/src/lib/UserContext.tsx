@@ -10,12 +10,20 @@ import React, {
   useState,
 } from "react";
 import { getCurrentUser, User } from "./api";
+import { getCurrentUserLocations, setCurrentLocation } from "./api/location.api";
 import { hasAllPermissions, hasAnyPermission, hasPermission } from "./utils/permissions";
 
+interface ExtendedUser extends User {
+  currentLocationId?: string | null;
+}
+
 interface UserContextType {
-  user: User | null;
-  setUser: (user: User | null) => void;
+  user: ExtendedUser | null;
+  setUser: (user: ExtendedUser | null) => void;
   isLoading: boolean;
+  availableLocations: Array<{ id: string; name: string }>;
+  refreshUser: () => Promise<void>;
+  switchLocation: (locationId: string) => Promise<void>;
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
@@ -25,6 +33,9 @@ const UserContext = createContext<UserContextType>({
   user: null,
   setUser: () => {},
   isLoading: true,
+  availableLocations: [],
+  refreshUser: async () => {},
+  switchLocation: async () => {},
   hasPermission: () => false,
   hasAnyPermission: () => false,
   hasAllPermissions: () => false,
@@ -33,9 +44,61 @@ const UserContext = createContext<UserContextType>({
 export const UserProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [availableLocations, setAvailableLocations] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
+
+  const fetchUser = async () => {
+    try {
+      const userData = await getCurrentUser();
+      setUser(userData as ExtendedUser);
+
+      // Fetch available locations for the user
+      try {
+        const locationsResponse = await getCurrentUserLocations();
+        if (locationsResponse.data) {
+          setAvailableLocations(locationsResponse.data);
+        }
+      } catch (err) {
+        console.error("Error fetching locations:", err);
+        // Don't fail user fetch if locations fail
+      }
+    } catch (err) {
+      // If we get a 401/403, clear the token and user
+      if (err && typeof err === "object" && "response" in err) {
+        const axiosError = err as { response?: { status?: number } };
+        if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
+          // Clear invalid token from both storage types
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            sessionStorage.removeItem("accessToken");
+            sessionStorage.removeItem("refreshToken");
+          }
+        }
+      }
+      setUser(null);
+      setAvailableLocations([]);
+      throw err;
+    }
+  };
+
+  const refreshUser = async () => {
+    await fetchUser();
+  };
+
+  const switchLocation = async (locationId: string) => {
+    try {
+      await setCurrentLocation(locationId);
+      await refreshUser();
+    } catch (err) {
+      console.error("Error switching location:", err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -67,23 +130,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
 
       try {
         setIsLoading(true);
-        const userData = await getCurrentUser();
-        setUser(userData);
+        await fetchUser();
       } catch (err) {
-        // If we get a 401/403, clear the token and user
-        if (err && typeof err === "object" && "response" in err) {
-          const axiosError = err as { response?: { status?: number } };
-          if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
-            // Clear invalid token from both storage types
-            if (typeof window !== "undefined") {
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("refreshToken");
-              sessionStorage.removeItem("accessToken");
-              sessionStorage.removeItem("refreshToken");
-            }
-          }
-        }
-        setUser(null);
+        // Error handling is done in fetchUser
       } finally {
         setIsLoading(false);
       }
@@ -115,6 +164,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
         user,
         setUser,
         isLoading,
+        availableLocations,
+        refreshUser,
+        switchLocation,
         hasPermission: hasPermissionCheck,
         hasAnyPermission: hasAnyPermissionCheck,
         hasAllPermissions: hasAllPermissionsCheck,

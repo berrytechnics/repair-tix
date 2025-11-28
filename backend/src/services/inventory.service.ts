@@ -38,7 +38,8 @@ export interface UpdateInventoryItemDto {
   sellingPrice?: number;
   // Note: quantity should not be directly updated - use purchase orders or adjustQuantity
   reorderLevel?: number;
-  location?: string | null;
+  locationId?: string | null;
+  location?: string | null; // Keep for physical location description
   supplier?: string | null;
   supplierPartNumber?: string | null;
   isActive?: boolean;
@@ -50,6 +51,7 @@ export type InventoryItem = Omit<
   InventoryItemTable,
   | "id"
   | "company_id"
+  | "location_id"
   | "sku"
   | "name"
   | "description"
@@ -71,6 +73,7 @@ export type InventoryItem = Omit<
   | "deleted_at"
 > & {
   id: string;
+  locationId: string | null;
   sku: string;
   name: string;
   description: string | null;
@@ -83,7 +86,7 @@ export type InventoryItem = Omit<
   sellingPrice: number;
   quantity: number;
   reorderLevel: number;
-  location: string | null;
+  location: string | null; // Keep for backward compatibility (physical location description)
   supplier: string | null;
   supplierPartNumber: string | null;
   isActive: boolean;
@@ -95,6 +98,7 @@ export type InventoryItem = Omit<
 function toInventoryItem(item: {
   id: string;
   company_id: string;
+  location_id: string | null;
   sku: string;
   name: string;
   description: string | null;
@@ -117,6 +121,7 @@ function toInventoryItem(item: {
 }): InventoryItem {
   return {
     id: item.id as string,
+    locationId: item.location_id as string | null,
     sku: item.sku,
     name: item.name,
     description: item.description,
@@ -139,7 +144,11 @@ function toInventoryItem(item: {
 }
 
 export class InventoryService {
-  async findAll(companyId: string, searchQuery?: string): Promise<InventoryItem[]> {
+  async findAll(
+    companyId: string,
+    searchQuery?: string,
+    locationId?: string | null
+  ): Promise<InventoryItem[]> {
     let query = db
       .selectFrom("inventory_items")
       .selectAll()
@@ -159,6 +168,14 @@ export class InventoryService {
       );
     }
 
+    if (locationId !== undefined) {
+      if (locationId === null) {
+        query = query.where("location_id", "is", null);
+      } else {
+        query = query.where("location_id", "=", locationId);
+      }
+    }
+
     const items = await query.execute();
     return items.map(toInventoryItem);
   }
@@ -175,18 +192,32 @@ export class InventoryService {
     return item ? toInventoryItem(item) : null;
   }
 
-  async create(data: CreateInventoryItemDto, companyId: string): Promise<InventoryItem> {
-    // Check SKU uniqueness within company
+  async create(data: CreateInventoryItemDto, companyId: string, locationId: string): Promise<InventoryItem> {
+    // Verify location belongs to company
+    const location = await db
+      .selectFrom("locations")
+      .select("id")
+      .where("id", "=", locationId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!location) {
+      throw new BadRequestError("Location not found or does not belong to company");
+    }
+
+    // Check SKU uniqueness within company and location
     const existing = await db
       .selectFrom("inventory_items")
       .select("id")
       .where("sku", "=", data.sku)
       .where("company_id", "=", companyId)
+      .where("location_id", "=", locationId)
       .where("deleted_at", "is", null)
       .executeTakeFirst();
 
     if (existing) {
-      throw new BadRequestError(`SKU ${data.sku} already exists`);
+      throw new BadRequestError(`SKU ${data.sku} already exists at this location`);
     }
 
     const item = await db
@@ -194,6 +225,7 @@ export class InventoryService {
       .values({
         id: uuidv4(),
         company_id: companyId,
+        location_id: locationId,
         sku: data.sku,
         name: data.name,
         description: data.description || null,
@@ -206,7 +238,7 @@ export class InventoryService {
         selling_price: data.sellingPrice,
         quantity: data.quantity ?? 0, // Allow negative for backordered items
         reorder_level: data.reorderLevel ?? 5,
-        location: data.location || null,
+        location: data.location || null, // Keep for physical location description
         supplier: data.supplier || null,
         supplier_part_number: data.supplierPartNumber || null,
         is_active: data.isActive ?? true,
@@ -234,19 +266,21 @@ export class InventoryService {
       return null;
     }
 
-    // If SKU is being updated, check uniqueness
+    // If SKU is being updated, check uniqueness within same location
     if (data.sku !== undefined && data.sku !== existing.sku) {
+      const currentLocationId = existing.location_id as string | null;
       const skuExists = await db
         .selectFrom("inventory_items")
         .select("id")
         .where("sku", "=", data.sku)
         .where("company_id", "=", companyId)
+        .where("location_id", "=", currentLocationId)
         .where("id", "!=", id)
         .where("deleted_at", "is", null)
         .executeTakeFirst();
 
       if (skuExists) {
-        throw new BadRequestError(`SKU ${data.sku} already exists`);
+        throw new BadRequestError(`SKU ${data.sku} already exists at this location`);
       }
     }
 
@@ -290,6 +324,40 @@ export class InventoryService {
       updateQuery = updateQuery.set({ selling_price: data.sellingPrice });
     }
     // Note: quantity is intentionally excluded - should be updated via purchase orders or adjustQuantity
+    if (data.locationId !== undefined) {
+      // If setting location, verify it belongs to company
+      if (data.locationId !== null) {
+        const location = await db
+          .selectFrom("locations")
+          .select("id")
+          .where("id", "=", data.locationId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!location) {
+          throw new BadRequestError("Location not found or does not belong to company");
+        }
+
+        // If location is changing, check SKU uniqueness in new location
+        if (existing.location_id !== data.locationId) {
+          const skuExists = await db
+            .selectFrom("inventory_items")
+            .select("id")
+            .where("sku", "=", existing.sku)
+            .where("company_id", "=", companyId)
+            .where("location_id", "=", data.locationId)
+            .where("id", "!=", id)
+            .where("deleted_at", "is", null)
+            .executeTakeFirst();
+
+          if (skuExists) {
+            throw new BadRequestError(`SKU ${existing.sku} already exists at the new location`);
+          }
+        }
+      }
+      updateQuery = updateQuery.set({ location_id: data.locationId });
+    }
     if (data.reorderLevel !== undefined) {
       updateQuery = updateQuery.set({ reorder_level: data.reorderLevel });
     }

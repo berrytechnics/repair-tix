@@ -15,7 +15,8 @@ export const db = new Kysely<Database>({
       port: parseInt(process.env.DB_PORT || "5432", 10),
       // Connection pool settings
       max: 10,
-      idleTimeoutMillis: 30000,
+      // Reduce idle timeout in test environment to help Jest exit faster
+      idleTimeoutMillis: process.env.NODE_ENV === "test" ? 1000 : 30000,
       connectionTimeoutMillis: 2000,
     }),
   }),
@@ -49,8 +50,16 @@ export async function testConnection(): Promise<boolean> {
 
 // Export a function to close the connection pool when the application shuts down
 export async function closeConnection(): Promise<void> {
-  await db.destroy();
-  logger.info("Database connection closed");
+  try {
+    // End all active connections immediately
+    await db.destroy();
+    logger.info("Database connection closed");
+    // Give a small delay to ensure all connections are fully closed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } catch (error) {
+    // Log error but don't throw - allow cleanup to continue
+    logger.error("Error closing database connection:", error);
+  }
 }
 
 export default db;

@@ -10,22 +10,26 @@ export const handleValidationErrors = (
   res: Response,
   next: NextFunction
 ) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const errorMap: Record<string, string> = {};
-    errors.array().forEach((error) => {
-      if (error.type === "field") {
-        // Map empty path to "_error" for custom validations (body().custom())
-        const path = error.path && error.path.trim() !== "" ? error.path : "_error";
-        errorMap[path] = error.msg;
-      } else {
-        // Handle non-field errors
-        errorMap["_error"] = error.msg;
-      }
-    });
-    throw new ValidationError("Validation failed", errorMap);
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMap: Record<string, string> = {};
+      errors.array().forEach((error) => {
+        if (error.type === "field") {
+          // Map empty path to "_error" for custom validations (body().custom())
+          const path = error.path && error.path.trim() !== "" ? error.path : "_error";
+          errorMap[path] = error.msg;
+        } else {
+          // Handle non-field errors
+          errorMap["_error"] = error.msg;
+        }
+      });
+      return next(new ValidationError("Validation failed", errorMap));
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
 };
 
 /**

@@ -12,14 +12,18 @@ export function requireTenantContext(
   res: Response,
   next: NextFunction
 ): void {
-  const user = req.user as UserWithoutPassword | undefined;
+  try {
+    const user = req.user as UserWithoutPassword | undefined;
 
-  if (!user || !user.company_id) {
-    throw new ForbiddenError("User must belong to a company");
+    if (!user || !user.company_id) {
+      return next(new ForbiddenError("User must belong to a company"));
+    }
+
+    // Attach company_id to request for easy access in services
+    req.companyId = user.company_id as unknown as string;
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  // Attach company_id to request for easy access in services
-  req.companyId = user.company_id as unknown as string;
-  next();
 }
 

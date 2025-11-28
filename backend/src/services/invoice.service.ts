@@ -25,6 +25,7 @@ export interface CreateInvoiceDto {
 
 export interface UpdateInvoiceDto {
   customerId?: string;
+  locationId?: string | null;
   ticketId?: string | null;
   status?: InvoiceStatus;
   subtotal?: number;
@@ -45,6 +46,7 @@ export type Invoice = Omit<
   InvoiceTable,
   | "id"
   | "company_id"
+  | "location_id"
   | "invoice_number"
   | "customer_id"
   | "ticket_id"
@@ -62,6 +64,7 @@ export type Invoice = Omit<
   | "deleted_at"
 > & {
   id: string;
+  locationId: string | null;
   invoiceNumber: string;
   customerId: string;
   ticketId: string | null;
@@ -162,6 +165,7 @@ function toInvoiceItem(item: {
 function toInvoice(invoice: {
   id: string;
   company_id: string;
+  location_id: string | null;
   invoice_number: string;
   customer_id: string;
   ticket_id: string | null;
@@ -183,6 +187,7 @@ function toInvoice(invoice: {
 }): Invoice {
   return {
     id: invoice.id as string,
+    locationId: invoice.location_id as string | null,
     invoiceNumber: invoice.invoice_number,
     customerId: invoice.customer_id,
     ticketId: invoice.ticket_id,
@@ -228,7 +233,12 @@ async function generateInvoiceNumber(companyId: string): Promise<string> {
 }
 
 export class InvoiceService {
-  async findAll(companyId: string, customerId?: string, status?: InvoiceStatus): Promise<Invoice[]> {
+  async findAll(
+    companyId: string,
+    customerId?: string,
+    status?: InvoiceStatus,
+    locationId?: string | null
+  ): Promise<Invoice[]> {
     let query = db
       .selectFrom("invoices")
       .selectAll()
@@ -241,6 +251,14 @@ export class InvoiceService {
 
     if (status) {
       query = query.where("status", "=", status);
+    }
+
+    if (locationId !== undefined) {
+      if (locationId === null) {
+        query = query.where("location_id", "is", null);
+      } else {
+        query = query.where("location_id", "=", locationId);
+      }
     }
 
     const invoices = await query.execute();
@@ -259,7 +277,20 @@ export class InvoiceService {
     return invoice ? toInvoice(invoice) : null;
   }
 
-  async create(data: CreateInvoiceDto, companyId: string): Promise<Invoice> {
+  async create(data: CreateInvoiceDto, companyId: string, locationId: string): Promise<Invoice> {
+    // Verify location belongs to company
+    const location = await db
+      .selectFrom("locations")
+      .select("id")
+      .where("id", "=", locationId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!location) {
+      throw new Error("Location not found or does not belong to company");
+    }
+
     // Generate unique invoice number for this company
     const invoiceNumber = await generateInvoiceNumber(companyId);
 
@@ -274,6 +305,7 @@ export class InvoiceService {
       .values({
         id: uuidv4(),
         company_id: companyId,
+        location_id: locationId,
         invoice_number: invoiceNumber,
         customer_id: data.customerId,
         ticket_id: data.ticketId || null,
@@ -311,6 +343,23 @@ export class InvoiceService {
 
     if (data.customerId !== undefined) {
       updateQuery = updateQuery.set({ customer_id: data.customerId });
+    }
+    if (data.locationId !== undefined) {
+      // If setting location, verify it belongs to company
+      if (data.locationId !== null) {
+        const location = await db
+          .selectFrom("locations")
+          .select("id")
+          .where("id", "=", data.locationId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!location) {
+          throw new Error("Location not found or does not belong to company");
+        }
+      }
+      updateQuery = updateQuery.set({ location_id: data.locationId });
     }
     if (data.ticketId !== undefined) {
       updateQuery = updateQuery.set({ ticket_id: data.ticketId || null });

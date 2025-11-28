@@ -4,6 +4,7 @@ import {
 } from "../config/errors";
 import { InvoiceStatus } from "../config/types";
 import { validateRequest } from "../middlewares/auth.middleware";
+import { requireLocationContext } from "../middlewares/location.middleware";
 import { requireAdmin, requireRole } from "../middlewares/rbac.middleware";
 import { requireTenantContext } from "../middlewares/tenant.middleware";
 import { validate } from "../middlewares/validation.middleware";
@@ -26,15 +27,18 @@ router.use(requireTenantContext);
 // GET /invoice - List all invoices (with optional filters)
 router.get(
   "/",
+  requireLocationContext,
   requireRole(["admin", "manager", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
+    const locationId = req.locationId!;
     const customerId = req.query.customerId as string | undefined;
     const status = req.query.status as InvoiceStatus | undefined;
     const invoices = await invoiceService.findAll(
       companyId,
       customerId,
-      status
+      status,
+      locationId
     );
     res.json({ success: true, data: invoices });
   })
@@ -58,11 +62,13 @@ router.get(
 // POST /invoice - Create new invoice
 router.post(
   "/",
+  requireLocationContext,
   validate(createInvoiceValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const invoice = await invoiceService.create(req.body, companyId);
+    const locationId = req.locationId!;
+    const invoice = await invoiceService.create(req.body, companyId, locationId);
     res.status(201).json({ success: true, data: invoice });
   })
 );
@@ -70,6 +76,7 @@ router.post(
 // PUT /invoice/:id - Update invoice
 router.put(
   "/:id",
+  requireLocationContext,
   validate(updateInvoiceValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -86,6 +93,7 @@ router.put(
 // DELETE /invoice/:id - Delete invoice (soft delete)
 router.delete(
   "/:id",
+  requireLocationContext,
   requireAdmin(),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
@@ -104,6 +112,7 @@ router.delete(
 // POST /invoice/:id/items - Add invoice item
 router.post(
   "/:id/items",
+  requireLocationContext,
   validate(createInvoiceItemValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -120,6 +129,7 @@ router.post(
 // PUT /invoice/:id/items/:itemId - Update invoice item
 router.put(
   "/:id/items/:itemId",
+  requireLocationContext,
   validate(updateInvoiceItemValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
@@ -136,6 +146,7 @@ router.put(
 // DELETE /invoice/:id/items/:itemId - Remove invoice item
 router.delete(
   "/:id/items/:itemId",
+  requireLocationContext,
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
@@ -154,6 +165,7 @@ router.delete(
 // POST /invoice/:id/paid - Mark invoice as paid
 router.post(
   "/:id/paid",
+  requireLocationContext,
   validate(markInvoicePaidValidation),
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
