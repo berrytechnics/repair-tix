@@ -5,348 +5,626 @@
 
 A comprehensive management system for electronics repair businesses with ticketing, inventory management, invoicing, and customer management features.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Technology Stack](#technology-stack)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Development Workflow](#development-workflow)
+- [Testing](#testing)
+- [Database Management](#database-management)
+- [API Documentation](#api-documentation)
+- [Common Tasks](#common-tasks)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+
+## Overview
+
+CircuitSage is a full-stack web application designed to manage all aspects of an electronics repair business. The system provides:
+
+- **Customer Management**: Complete customer profiles with contact information and history
+- **Ticketing System**: Track repair jobs from intake to completion with status updates, technician assignment, and notes
+- **Invoicing**: Generate invoices with line items, tax calculation, and payment tracking
+- **Inventory Management**: Track parts and supplies with reorder thresholds
+- **Purchase Orders**: Manage supplier orders and receiving
+- **Multi-Tenancy**: Support for multiple companies with location-based organization
+- **Role-Based Access Control**: Granular permissions system for different user roles
+
 ## Technology Stack
 
-- **Backend**: Express.js with TypeScript
-- **Frontend**: Next.js 14 with TypeScript and React
-- **Database**: PostgreSQL
-- **Containerization**: Docker
+### Backend
+- **Runtime**: Node.js with Express.js
+- **Language**: TypeScript
+- **Database**: PostgreSQL 15
 - **ORM**: Kysely (type-safe SQL query builder)
 - **Authentication**: JWT tokens with bcrypt password hashing
+- **Validation**: express-validator
+- **Logging**: Winston
 
-## Features
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Forms**: React Hook Form with Zod validation
+- **State Management**: Zustand
+- **HTTP Client**: Axios
 
-### Implemented Features
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **CI/CD**: GitHub Actions
+- **Testing**: Jest (backend), Playwright (E2E)
 
-- **Customer Management**: Full CRUD operations for customer profiles with search functionality
-- **Ticketing System**: Complete ticket management with:
-  - Automated ticket numbering
-  - Status tracking and updates
-  - Technician assignment/unassignment
-  - Priority management
-  - Diagnostic and repair notes
-  - Full UI integration
-- **Invoicing**: Invoice generation with automated invoice numbering, tax calculation, and payment tracking
-- **User Authentication**: JWT-based authentication with secure password hashing
-- **Role-Based Access Control**: RBAC middleware implemented and enforced on all routes with role-based permissions
-- **API Routes**: RESTful API endpoints for customers, tickets, invoices, and users
-- **Frontend UI**: Complete Next.js frontend with pages for customers, tickets, invoices, and dashboard
-- **Testing**: Comprehensive backend test suite with 118+ tests and E2E testing framework (Playwright)
-- **Demo Tools**: Cloudflare tunnel integration for easy frontend sharing
+## Prerequisites
 
-### Planned Features
+Before you begin, ensure you have the following installed:
 
-- **Inventory Management**: Track parts, supplies, and set reorder thresholds
-- **Diagnostic System**: Standardized diagnostic templates and checklists
-- **Communication Tools**: Email and SMS notifications for status updates
-- **Reporting**: Business analytics and performance reports
-- **Payment Processing**: Stripe integration for payment processing
+- **Docker** (version 20.10+) and **Docker Compose** (version 2.0+)
+- **Node.js** (version 18+) - for local development outside Docker
+- **npm** or **yarn** - for managing dependencies
+- **Git** - for version control
 
-## Getting Started
+### Verifying Installation
 
-### Prerequisites
+```bash
+docker --version
+docker-compose --version
+node --version
+npm --version
+```
 
-- Docker and Docker Compose
-- Node.js (for local development outside Docker)
-- npm or yarn (for local development outside Docker)
+## Quick Start
 
-### Setup and Installation
-
-1. Clone the repository:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/berrytechnics/circuit-sage.git
 cd circuit-sage
 ```
 
-2. Configure environment variables:
+### 2. Install Root Dependencies
 
 ```bash
-# Copy example .env files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+npm install
 ```
 
-3. Start the application using the CircuitSage CLI:
+This installs the CircuitSage CLI tool and its dependencies.
+
+### 3. Start the Application
+
+The CLI automatically handles environment setup and container management:
 
 ```bash
 # Development mode with live logs
 npm run dev
 
+# Development mode in background (detached)
+npm run dev -- -d
+
 # Production mode
 npm run start
 ```
 
-This will start the PostgreSQL database, backend API, and frontend web application.
+The first run will:
+- Create `.env` files from examples if they don't exist
+- Build Docker images
+- Start PostgreSQL, backend API, and frontend containers
+- Run database migrations automatically
 
-4. Access the application:
+### 4. Access the Application
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:4000
-- Health Check: http://localhost:4000/health
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:4000
+- **API Health Check**: http://localhost:4000/health
+- **Database**: localhost:5432 (credentials in `docker-compose.yml`)
 
-### Default Admin Login
+### 5. Default Login Credentials
 
-After initialization, you can log in with the default admin account:
+After initialization, log in with:
 
-- Email: admin@circuitsage.com
-- Password: admin123
+- **Email**: admin@circuitsage.com
+- **Password**: admin123
 
-**Important**: Change the default admin password after the first login!
+**⚠️ Important**: Change the default admin password immediately after first login!
 
 ## Project Structure
 
 ```
 circuit-sage/
-├── backend/                # Express TypeScript backend
+├── backend/                    # Express TypeScript backend
 │   ├── src/
-│   │   ├── __tests__/      # Test files
-│   │   ├── config/         # Configuration files (database, errors, logger, types)
-│   │   ├── middlewares/    # Express middlewares (auth, validation)
-│   │   ├── routes/         # API routes (customer, ticket, invoice, user)
-│   │   ├── services/       # Business logic layer
-│   │   ├── utils/          # Utility functions (asyncHandler, auth)
-│   │   ├── validators/     # Request validation schemas
-│   │   ├── app.ts          # Express app configuration
-│   │   └── server.ts        # Server entry point
-│   ├── Dockerfile          # Backend Docker configuration
-│   ├── Dockerfile.dev      # Development Docker configuration
-│   ├── package.json        # Backend dependencies and scripts
-│   ├── tsconfig.json       # TypeScript configuration
-│   └── jest.config.js      # Jest test configuration
-├── frontend/               # Next.js TypeScript frontend
+│   │   ├── __tests__/          # Test suites
+│   │   ├── config/             # Configuration (DB, errors, logger, types, permissions)
+│   │   ├── middlewares/        # Express middlewares (auth, RBAC, validation, tenant)
+│   │   ├── routes/             # API route handlers
+│   │   ├── services/           # Business logic layer
+│   │   ├── utils/              # Utility functions (asyncHandler, auth helpers)
+│   │   ├── validators/         # Request validation schemas
+│   │   ├── app.ts              # Express app configuration
+│   │   └── server.ts           # Server entry point
+│   ├── scripts/                # Utility scripts (migrations, role updates)
+│   ├── Dockerfile              # Production Docker image
+│   ├── Dockerfile.dev          # Development Docker image
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── jest.config.js
+├── frontend/                   # Next.js TypeScript frontend
 │   ├── src/
-│   │   ├── app/            # Next.js App Router pages
-│   │   │   ├── customers/  # Customer management pages
-│   │   │   ├── tickets/    # Ticket management pages
-│   │   │   ├── invoices/   # Invoice management pages
-│   │   │   ├── dashboard/  # Dashboard page
-│   │   │   └── login/      # Authentication pages
-│   │   ├── components/     # Reusable React components
-│   │   ├── lib/            # Utility functions and API clients
-│   │   └── styles/         # CSS and styling files
-│   ├── Dockerfile          # Frontend Docker configuration
-│   ├── Dockerfile.dev      # Development Docker configuration
-│   ├── package.json        # Frontend dependencies and scripts
-│   ├── tsconfig.json       # TypeScript configuration
-│   └── tailwind.config.js  # Tailwind CSS configuration
+│   │   ├── __tests__/          # Test files
+│   │   ├── app/                # Next.js App Router pages
+│   │   │   ├── customers/      # Customer management pages
+│   │   │   ├── tickets/        # Ticket management pages
+│   │   │   ├── invoices/       # Invoice management pages
+│   │   │   ├── inventory/      # Inventory management pages
+│   │   │   ├── purchase-orders/ # Purchase order pages
+│   │   │   ├── locations/      # Location management pages
+│   │   │   ├── assets/         # Asset management pages
+│   │   │   ├── settings/       # Settings and permissions pages
+│   │   │   ├── dashboard/      # Dashboard page
+│   │   │   ├── login/          # Authentication pages
+│   │   │   └── register/       # Registration page
+│   │   ├── components/         # Reusable React components
+│   │   ├── lib/                # Utilities and API clients
+│   │   │   ├── api/           # API client functions
+│   │   │   ├── utils/         # Helper utilities
+│   │   │   ├── ThemeContext.tsx
+│   │   │   └── UserContext.tsx
+│   │   └── styles/            # Global styles
+│   ├── e2e/                   # Playwright E2E tests
+│   ├── Dockerfile
+│   ├── Dockerfile.dev
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── tailwind.config.js
 ├── database/
-│   ├── init/               # Database initialization scripts
-│   └── migrations/         # Database migration files
-├── planning/               # Project planning documents
-│   ├── MVP.md              # MVP specification
-│   ├── PLAN.md             # Development roadmap
-│   └── progress/           # Progress reports
-├── docker-compose.yml      # Docker composition
-├── cli.js                  # CircuitSage CLI tool
-├── package.json            # Root package.json with CLI commands
-└── README.md               # Project documentation
+│   ├── init/                  # Database initialization scripts
+│   ├── migrations/            # Database migration files
+│   └── scripts/               # Database utility scripts
+├── planning/                  # Project planning documents
+├── docker-compose.yml         # Docker Compose configuration
+├── cli.js                     # CircuitSage CLI tool
+├── package.json               # Root package.json with CLI commands
+├── README.md                  # This file
+└── QUICK_START.md            # User-focused quick start guide
 ```
 
-## Development
+## Architecture
 
-### CircuitSage CLI
+### Backend Architecture
 
-CircuitSage comes with a powerful CLI tool for managing your development and production environments.
+The backend follows a layered architecture:
 
-#### Installation
+1. **Routes Layer** (`src/routes/`): Define API endpoints and HTTP methods
+2. **Middleware Layer** (`src/middlewares/`): Handle authentication, authorization, validation, and tenant isolation
+3. **Service Layer** (`src/services/`): Contains business logic and database operations
+4. **Database Layer**: PostgreSQL with Kysely for type-safe queries
 
-From the project root directory:
+### Request Flow
+
+```
+HTTP Request
+  ↓
+Route Handler (routes/)
+  ↓
+Authentication Middleware (JWT validation)
+  ↓
+RBAC Middleware (Permission checking)
+  ↓
+Tenant Middleware (Company/Location isolation)
+  ↓
+Validation Middleware (Request validation)
+  ↓
+Service Layer (Business logic)
+  ↓
+Database (Kysely queries)
+  ↓
+Response
+```
+
+### Frontend Architecture
+
+The frontend uses Next.js 14 App Router:
+
+- **Pages**: Server and client components in `src/app/`
+- **Components**: Reusable UI components in `src/components/`
+- **API Clients**: Centralized API functions in `src/lib/api/`
+- **Context**: User and Theme context for global state
+- **Permissions**: Client-side permission checking via `UserContext`
+
+### Multi-Tenancy
+
+The system supports multiple companies, each with:
+- Multiple locations
+- Company-specific role permissions
+- Isolated data (customers, tickets, invoices, etc.)
+- Location-based filtering
+
+## Development Workflow
+
+### Using the CircuitSage CLI
+
+The project includes a powerful CLI tool for common development tasks:
 
 ```bash
-# Install dependencies
-npm install
+# View all available commands
+node cli.js --help
 
-# Link CLI for global use (optional)
-# After linking, you can use 'circuit-sage' command globally
-npm run link
+# Or use npm scripts (recommended)
+npm run dev          # Start development environment
+npm run start        # Start production environment
+npm run stop         # Stop containers
+npm run stop -- -r   # Stop and remove containers
+npm run cleanup      # Clean up all Docker resources
+npm run logs         # View container logs
+npm run logs -- -s backend --follow  # Follow backend logs
+npm run health       # Check service health
+npm run shell -- -s backend  # Open shell in backend container
 ```
 
-**Note**: After linking globally, you can use `circuit-sage --help` instead of `node cli.js --help`. However, using npm scripts (like `npm run dev`) is the recommended approach.
+### Local Development (Without Docker)
 
-#### Available Commands
-
-You can run the CLI directly with `node cli.js --help` to see all available commands, or use the npm scripts (recommended):
-
-```bash
-# Development Commands
-npm run dev           # Start development environment with live logs
-npm run dev -- -d     # Start development environment in detached mode (no logs)
-
-# Production Commands
-npm run start         # Build and run the application in production mode
-
-# Container Management
-npm run stop          # Stop running containers without removing them
-npm run stop -- -r    # Stop and remove containers
-npm run cleanup       # Clean up Docker resources completely
-
-# Database Commands
-npm run db:migrate          # Run database migrations (via Sequelize CLI)
-npm run db:migrate:undo     # Undo the last database migration
-npm run db:migrate:reset    # Reset database (undo all migrations, then migrate)
-npm run db:migrate:undo:all # Undo all migrations
-npm run db:seed             # Seed the database with initial data
-npm run db:seed:undo        # Undo all database seeds
-
-# CI/CD Commands
-npm run ci:backend          # Run backend CI checks (lint, typecheck, test)
-npm run ci:frontend         # Run frontend CI checks (lint, typecheck, build)
-npm run ci:all              # Run all CI checks
-
-# Demo Commands
-npm run demo                # Start Cloudflare tunnel for frontend demo
-npm run demo -- --port 3001 # Start demo tunnel with custom port
-```
-
-### Backend Development
+#### Backend
 
 ```bash
 cd backend
 npm install  # or yarn install
-npm run dev   # or yarn dev
+
+# Create .env file from example
+cp .env.example .env
+
+# Start PostgreSQL (or use Docker for DB only)
+docker-compose up -d postgres
+
+# Run migrations
+npm run db:migrate
+
+# Start development server
+npm run dev
 ```
 
-The backend includes:
-- TypeScript with strict type checking
-- Kysely ORM for type-safe database queries
-- JWT authentication middleware
-- Role-based access control (RBAC) middleware
-- Request validation middleware
-- Comprehensive error handling
-- Test suite with Jest (118+ tests)
-
-### Frontend Development
+#### Frontend
 
 ```bash
 cd frontend
 npm install  # or yarn install
-npm run dev   # or yarn dev
+
+# Create .env file from example
+cp .env.example .env
+
+# Start development server
+npm run dev
 ```
 
-The frontend includes:
-- Next.js 14 with App Router
-- TypeScript for type safety
-- Tailwind CSS for styling
-- React Hook Form for form management
-- API client functions for backend integration
+### Hot Reloading
 
-### Docker Development
+Both backend and frontend support hot reloading in development mode:
 
-The project includes optimized Docker configurations for both development and production:
+- **Backend**: Uses `ts-node-dev` for automatic restarts on file changes
+- **Frontend**: Next.js built-in hot module replacement
 
-- Development containers include hot reloading, source mapping, and development dependencies
-- Production containers are optimized for performance and security
+### Code Style
+
+- **TypeScript**: Strict mode enabled
+- **ESLint**: Configured for both backend and frontend
+- **Prettier**: Recommended (not enforced)
+
+Run linting:
+
+```bash
+# Backend
+cd backend && npm run lint
+
+# Frontend
+cd frontend && npm run lint
+```
 
 ## Testing
 
-The project includes comprehensive test coverage:
-
 ### Backend Tests
+
+Backend tests use Jest and Supertest:
 
 ```bash
 cd backend
-npm test              # Run all tests
-npm run test:watch    # Run tests in watch mode
-npm run test:coverage # Generate coverage report
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
 ```
 
-Test files are located in `backend/src/__tests__/` and include:
-- Route integration tests for customers, tickets, invoices, and users
+Test files are located in `backend/src/__tests__/`:
+- Route integration tests
 - Service layer tests
 - Authentication and validation tests
 
 ### Frontend Tests
 
-Frontend testing setup is in progress.
-
-## Build Optimizations
-
-CircuitSage includes several build optimizations:
-
-- SWC minification for faster builds
-- Bundle analysis tools for optimizing code size
-- Memory optimizations for large projects
-- Docker caching strategies for faster rebuilds
-
-To analyze frontend bundle size:
-
 ```bash
 cd frontend
-npm run analyze
+
+# Unit tests (Jest)
+npm test
+
+# E2E tests (Playwright)
+npm run test:e2e
+
+# E2E tests with UI
+npm run test:e2e:ui
 ```
 
-## API Endpoints
+### Running Tests via CLI
+
+```bash
+# Run backend tests
+npm run test -- -s backend
+
+# Run with coverage
+npm run test -- -s backend --coverage
+```
+
+## Database Management
+
+### Migrations
+
+The project uses SQL migrations stored in `database/migrations/`:
+
+```bash
+# Run migrations
+npm run db:migrate
+
+# Undo last migration
+npm run db:migrate:undo
+
+# Reset database (undo all, then migrate)
+npm run db:reset
+
+# Undo all migrations
+npm run db:migrate:undo -- --all
+```
+
+### Database Access
+
+```bash
+# Open PostgreSQL shell
+npm run shell -- -s db
+
+# Or directly
+docker exec -it circuit-sage-db psql -U repair_admin -d repair_business
+```
+
+### Backups
+
+```bash
+# Create backup
+npm run db:backup
+
+# Create backup with custom filename
+npm run db:backup -- -o my-backup.sql
+
+# Restore backup
+npm run db:restore my-backup.sql
+```
+
+## API Documentation
 
 ### Authentication
-- `POST /user/register` - Register a new user
-- `POST /user/login` - Login and receive JWT token
 
-### Customers
-- `GET /customer` - List all customers (with optional search query)
-- `GET /customer/search` - Search customers
-- `GET /customer/:id` - Get customer by ID
-- `POST /customer` - Create new customer
-- `PUT /customer/:id` - Update customer
-- `DELETE /customer/:id` - Delete customer (soft delete)
-- `GET /customer/:id/tickets` - Get customer's tickets
+All endpoints (except `/user/register`, `/user/login`, and `/health`) require authentication via JWT token in the `Authorization` header:
 
-### Tickets
-- `GET /ticket` - List all tickets (with optional filters: customerId, status)
-- `GET /ticket/:id` - Get ticket by ID
-- `POST /ticket` - Create new ticket
-- `PUT /ticket/:id` - Update ticket
-- `DELETE /ticket/:id` - Delete ticket (soft delete)
-- `POST /ticket/:id/assign` - Assign or unassign technician
-- `POST /ticket/:id/status` - Update ticket status
-- `POST /ticket/:id/diagnostic-notes` - Add diagnostic notes
-- `POST /ticket/:id/repair-notes` - Add repair notes
+```
+Authorization: Bearer <token>
+```
 
-### Invoices
-- `GET /invoice` - List all invoices (with optional filters: customerId, status)
-- `GET /invoice/:id` - Get invoice by ID
-- `POST /invoice` - Create new invoice
-- `PUT /invoice/:id` - Update invoice
-- `DELETE /invoice/:id` - Delete invoice (soft delete)
-- `POST /invoice/:id/items` - Add item to invoice
-- `PUT /invoice/:id/items/:itemId` - Update invoice item
-- `DELETE /invoice/:id/items/:itemId` - Remove invoice item
-- `POST /invoice/:id/paid` - Mark invoice as paid
-- `GET /customer/:id/invoices` - Get customer's invoices
+### Core Endpoints
+
+#### Customers
+- `GET /api/customer` - List customers (with search)
+- `GET /api/customer/:id` - Get customer details
+- `POST /api/customer` - Create customer
+- `PUT /api/customer/:id` - Update customer
+- `DELETE /api/customer/:id` - Delete customer (soft delete)
+- `GET /api/customer/:id/tickets` - Get customer's tickets
+
+#### Tickets
+- `GET /api/ticket` - List tickets (with filters)
+- `GET /api/ticket/:id` - Get ticket details
+- `POST /api/ticket` - Create ticket
+- `PUT /api/ticket/:id` - Update ticket
+- `POST /api/ticket/:id/assign` - Assign/unassign technician
+- `POST /api/ticket/:id/status` - Update status
+- `POST /api/ticket/:id/diagnostic-notes` - Add diagnostic notes
+- `POST /api/ticket/:id/repair-notes` - Add repair notes
+- `DELETE /api/ticket/:id` - Delete ticket (soft delete)
+
+#### Invoices
+- `GET /api/invoice` - List invoices (with filters)
+- `GET /api/invoice/:id` - Get invoice details
+- `POST /api/invoice` - Create invoice
+- `PUT /api/invoice/:id` - Update invoice
+- `POST /api/invoice/:id/items` - Add invoice item
+- `PUT /api/invoice/:id/items/:itemId` - Update invoice item
+- `DELETE /api/invoice/:id/items/:itemId` - Remove invoice item
+- `POST /api/invoice/:id/paid` - Mark invoice as paid
+- `DELETE /api/invoice/:id` - Delete invoice (soft delete)
+
+#### Inventory
+- `GET /api/inventory` - List inventory items
+- `GET /api/inventory/:id` - Get inventory item
+- `POST /api/inventory` - Create inventory item
+- `PUT /api/inventory/:id` - Update inventory item
+- `DELETE /api/inventory/:id` - Delete inventory item
+
+#### Purchase Orders
+- `GET /api/purchase-order` - List purchase orders
+- `GET /api/purchase-order/:id` - Get purchase order
+- `POST /api/purchase-order` - Create purchase order
+- `PUT /api/purchase-order/:id` - Update purchase order
+- `POST /api/purchase-order/:id/receive` - Receive purchase order
+- `POST /api/purchase-order/:id/cancel` - Cancel purchase order
+- `DELETE /api/purchase-order/:id` - Delete purchase order
 
 ### Health Check
-- `GET /health` - Health check endpoint
 
-All endpoints (except `/user/register`, `/user/login`, and `/health`) require authentication via JWT token in the `Authorization` header: `Bearer <token>`
+- `GET /health` - Service health check (no authentication required)
+
+## Common Tasks
+
+### Adding a New Feature
+
+1. **Database**: Create migration in `database/migrations/`
+2. **Backend**: 
+   - Add types in `backend/src/config/types.ts`
+   - Create service in `backend/src/services/`
+   - Create routes in `backend/src/routes/`
+   - Add validators in `backend/src/validators/`
+   - Add permissions in `backend/src/config/permissions.ts`
+3. **Frontend**:
+   - Create API client in `frontend/src/lib/api/`
+   - Create pages in `frontend/src/app/`
+   - Add components in `frontend/src/components/`
+4. **Tests**: Add tests in respective `__tests__/` directories
+
+### Debugging
+
+```bash
+# View logs
+npm run logs
+
+# View specific service logs
+npm run logs -- -s backend --follow
+
+# Check service health
+npm run health
+
+# Open shell in container
+npm run shell -- -s backend
+```
+
+### Environment Variables
+
+Backend (`.env`):
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- `JWT_SECRET`
+- `PORT` (default: 4000)
+- `NODE_ENV`
+
+Frontend (`.env`):
+- `NEXT_PUBLIC_API_URL` (default: http://localhost:4000/api)
+
+## Troubleshooting
+
+### Containers Won't Start
+
+```bash
+# Check Docker is running
+docker ps
+
+# View container logs
+npm run logs
+
+# Check container status
+npm run status
+
+# Restart containers
+npm run restart
+```
+
+### Database Connection Issues
+
+```bash
+# Verify database is running
+docker ps | grep circuit-sage-db
+
+# Check database logs
+npm run logs -- -s db
+
+# Test database connection
+npm run shell -- -s db
+```
+
+### Port Already in Use
+
+If ports 3000, 4000, or 5432 are in use:
+
+1. Stop conflicting services, or
+2. Modify `docker-compose.yml` to use different ports
+
+### Frontend Build Errors
+
+```bash
+# Clear Next.js cache
+cd frontend
+rm -rf .next
+
+# Rebuild
+npm run build
+```
+
+### Backend Type Errors
+
+```bash
+# Run type checking
+cd backend
+npx tsc --noEmit
+```
+
+### Permission Denied Errors
+
+Ensure Docker has proper permissions and the user is in the `docker` group (Linux).
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Write or update tests
+5. Ensure all tests pass (`npm run ci:all`)
+6. Commit your changes (`git commit -m 'Add some amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+### Code Quality Checks
+
+Before submitting a PR, run:
+
+```bash
+# Backend checks
+npm run ci:backend
+
+# Frontend checks
+npm run ci:frontend
+
+# All checks
+npm run ci:all
+```
 
 ## Project Status
 
 **Current Progress: ~67% Complete**
 
-### Completed
-- ✅ Database schema for all core entities
-- ✅ Backend services and routes (customers, tickets, invoices, users)
-- ✅ Advanced ticket endpoints (assign, status, notes)
-- ✅ JWT authentication system
-- ✅ Frontend UI components and pages
-- ✅ API client functions with full integration
-- ✅ Request validation
-- ✅ Comprehensive test suite for backend routes (118+ tests)
-- ✅ Role-based access control (RBAC) middleware implemented and enforced on all routes
-- ✅ Permission-based route protection on all frontend pages (21 pages protected)
-- ✅ Company-specific RBAC permissions management with editable permissions screen
-- ✅ Ticket management UI fully functional
-- ✅ Invoice item management fully implemented (add, update, delete)
-- ✅ E2E testing framework established (Playwright)
-- ✅ Customer management UI fully functional
-- ✅ Inventory management system complete
-- ✅ Purchase orders system complete
-- ✅ Demo tunnel script for sharing frontend
+### Completed Features
+- ✅ Multi-tenant architecture with company/location support
+- ✅ Customer management (CRUD)
+- ✅ Ticketing system with status tracking and notes
+- ✅ Invoicing with line items and payment tracking
+- ✅ Inventory management
+- ✅ Purchase orders
+- ✅ Role-based access control (RBAC)
+- ✅ User authentication and authorization
+- ✅ Comprehensive backend test suite (118+ tests)
+- ✅ E2E testing framework (Playwright)
 
 ### In Progress
 - 🟡 Frontend unit testing
 
-### Planned
+### Planned Features
 - ⏳ Diagnostic checklist system
 - ⏳ Communication tools (email/SMS)
 - ⏳ Payment processing integration
@@ -354,16 +632,13 @@ All endpoints (except `/user/register`, `/user/login`, and `/health`) require au
 
 See `planning/progress/` for detailed progress reports.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
 This project is proprietary software. All rights reserved.
 
-![CircuitSage Logo](./frontend/public/logo.svg)
+## Additional Resources
+
+- [QUICK_START.md](./QUICK_START.md) - User-focused quick start guide
+- [TESTING_METHODOLOGY.md](./TESTING_METHODOLOGY.md) - Testing guidelines and practices
+- `planning/MVP.md` - MVP specification
+- `planning/PLAN.md` - Development roadmap

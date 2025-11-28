@@ -12,9 +12,7 @@ import {
     ClipboardDocumentIcon,
     Cog6ToothIcon,
     DocumentTextIcon,
-    MapPinIcon,
     MoonIcon,
-    ShieldCheckIcon,
     ShoppingBagIcon,
     SunIcon,
     TicketIcon,
@@ -122,13 +120,6 @@ export default function Sidebar() {
       label: "Settings",
       icon: <Cog6ToothIcon className="w-6 h-6" />,
       permission: "settings.access",
-    },
-    {
-      href: "/locations",
-      label: "Locations",
-      icon: <MapPinIcon className="w-6 h-6" />,
-      permission: "settings.access", // Admin only, checked below
-      adminOnly: true,
     },
   ];
 
@@ -254,26 +245,25 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="space-y-1 flex-1">
-            {navigation.map((item) => (
-              <SidebarLink
-                key={item.href}
-                href={item.href}
-                icon={item.icon}
-                label={item.label}
-                active={
-                  pathname === item.href || pathname.startsWith(`${item.href}/`)
-                }
-              />
-            ))}
-            {/* Permissions link (admin only) */}
-            {user && hasPermission("permissions.view") && (
-              <SidebarLink
-                href="/settings/permissions"
-                icon={<ShieldCheckIcon className="w-6 h-6" />}
-                label="Permissions"
-                active={pathname === "/settings/permissions" || pathname.startsWith("/settings/permissions")}
-              />
-            )}
+            {navigation.map((item) => {
+              // Settings should be active for /settings, /settings/*, and /locations pages
+              const isActive = item.href === "/settings"
+                ? pathname === item.href || 
+                  pathname.startsWith(`${item.href}/`) || 
+                  pathname === "/locations" ||
+                  pathname.startsWith("/locations/")
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              
+              return (
+                <SidebarLink
+                  key={item.href}
+                  href={item.href}
+                  icon={item.icon}
+                  label={item.label}
+                  active={isActive}
+                />
+              );
+            })}
           </nav>
 
           {/* Location Switcher */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@/lib/UserContext";
-import { Cog6ToothIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon, MapPinIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -37,12 +37,24 @@ export default function SettingsPage() {
       icon: ShieldCheckIcon,
       permission: "permissions.view",
     },
-    // Add more settings items here as needed
+    {
+      name: "Locations",
+      description: "Manage business locations",
+      href: "/locations",
+      icon: MapPinIcon,
+      permission: "settings.access",
+      adminOnly: true,
+    },
   ];
 
-  const availableSettings = settingsItems.filter((item) =>
-    hasPermission(item.permission)
-  );
+  const availableSettings = settingsItems.filter((item) => {
+    if (!user) return false;
+    // Check admin-only items
+    if (item.adminOnly && user.role !== "admin") {
+      return false;
+    }
+    return hasPermission(item.permission);
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
