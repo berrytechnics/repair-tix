@@ -48,6 +48,8 @@ If you're using the `render.yaml` file:
    - `circuit-sage-api` (Backend API)
    - `circuit-sage-frontend` (Frontend)
 
+**Note**: If you encounter errors with the PostgreSQL service in `render.yaml` (e.g., "unknown type"), you may need to create the database manually first (see Step 4.1), then deploy the web services using the Blueprint.
+
 ### Step 4: Manual Service Setup (Alternative)
 
 If Blueprint doesn't work, create services manually:

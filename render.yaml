@@ -1,10 +1,10 @@
 services:
   # PostgreSQL Database
-  - type: pspg
+  - type: postgresql
     name: circuit-sage-db
     plan: free
     databaseName: repair_business
-    user: repair_admin
+    databaseUser: repair_admin
 
   # Backend API Service
   - type: web
