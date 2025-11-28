@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: pg
+  - type: postgres
     name: circuit-sage-db
     plan: free
     ipAllowList: []
