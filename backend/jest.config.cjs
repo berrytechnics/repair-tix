@@ -29,7 +29,7 @@ module.exports = {
     '^src/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
-  globalTeardown: '<rootDir>/src/__tests__/teardown.ts',
+  globalTeardown: '<rootDir>/jest-teardown-wrapper.cjs',
   testTimeout: 30000, // Increased timeout for integration tests with real database
   // Skip tests if no test files found (for CI)
   passWithNoTests: true,
