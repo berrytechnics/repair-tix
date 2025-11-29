@@ -97,6 +97,8 @@ export interface InventoryItemTable {
   supplier: string | null;
   supplier_part_number: string | null;
   is_active: boolean;
+  is_taxable: boolean;
+  track_quantity: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: SoftDelete;
@@ -145,6 +147,7 @@ export interface InvoiceItemTable {
   discount_amount: number;
   subtotal: number;
   type: "part" | "service" | "other";
+  is_taxable: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -251,6 +254,7 @@ export interface LocationTable {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  tax_rate: number;
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: SoftDelete;

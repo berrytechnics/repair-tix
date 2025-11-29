@@ -56,7 +56,8 @@ if [ "${USE_DOCKER_PSQL}" = "true" ]; then
     psql -U "${PSQL_USER}" -d "${PSQL_DB}" \
     -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" || exit 1
 else
-  psql -h "${PSQL_HOST}" -p "${PSQL_PORT}" -U "${PSQL_USER}" -d "${PSQL_DB}" \
+  # Use TCP connection explicitly for local psql
+  psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" \
     -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" || exit 1
 fi
 echo "UUID extension enabled"
@@ -82,8 +83,8 @@ for migration in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
       psql -U "${PSQL_USER}" -d "${PSQL_DB}" -v ON_ERROR_STOP=1 2>&1)
     EXIT_CODE=$?
   else
-    # Local psql
-    OUTPUT=$(psql -h "${PSQL_HOST}" -p "${PSQL_PORT}" -U "${PSQL_USER}" -d "${PSQL_DB}" \
+    # Local psql - use connection string to force TCP connection
+    OUTPUT=$(psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" \
       -f "${migration}" -v ON_ERROR_STOP=1 2>&1)
     EXIT_CODE=$?
   fi
@@ -102,7 +103,7 @@ for migration in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
           psql -U "${PSQL_USER}" -d "${PSQL_DB}" \
           -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'customers', 'tickets', 'invoices', 'inventory_items');")
       else
-        TABLE_CHECK=$(psql -h "${PSQL_HOST}" -p "${PSQL_PORT}" -U "${PSQL_USER}" -d "${PSQL_DB}" \
+        TABLE_CHECK=$(psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" \
           -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'customers', 'tickets', 'invoices', 'inventory_items');")
       fi
       # Trim whitespace from TABLE_CHECK
@@ -134,11 +135,11 @@ if [ "${USE_DOCKER_PSQL}" = "true" ]; then
     psql -U "${PSQL_USER}" -d "${PSQL_DB}" \
     -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions');")
 else
-  psql -h "${PSQL_HOST}" -p "${PSQL_PORT}" -U "${PSQL_USER}" -d "${PSQL_DB}" -c "\dt" || exit 1
+  psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" -c "\dt" || exit 1
   
   # Verify key tables exist
   echo "Checking for required tables..."
-  TABLE_COUNT=$(psql -h "${PSQL_HOST}" -p "${PSQL_PORT}" -U "${PSQL_USER}" -d "${PSQL_DB}" \
+  TABLE_COUNT=$(psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" \
     -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions');")
 fi
 

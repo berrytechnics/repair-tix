@@ -11,6 +11,7 @@ export interface CreateLocationDto {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  taxRate?: number;
 }
 
 export interface UpdateLocationDto {
@@ -19,12 +20,14 @@ export interface UpdateLocationDto {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  taxRate?: number;
 }
 
 // Output type
-export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at"> & {
+export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at" | "tax_rate"> & {
   id: string;
   company_id: string;
+  taxRate: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -38,6 +41,7 @@ function toLocation(location: {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  tax_rate: number;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -50,6 +54,7 @@ function toLocation(location: {
     phone: location.phone,
     email: location.email,
     is_active: location.is_active,
+    taxRate: Number(location.tax_rate),
     createdAt: location.created_at,
     updatedAt: location.updated_at,
   };
@@ -95,6 +100,7 @@ export class LocationService {
         phone: data.phone || null,
         email: data.email || null,
         is_active: data.isActive !== undefined ? data.isActive : true,
+        tax_rate: data.taxRate !== undefined ? data.taxRate : 0,
         created_at: sql`now()`,
         updated_at: sql`now()`,
         deleted_at: null,
@@ -139,6 +145,9 @@ export class LocationService {
     }
     if (data.isActive !== undefined) {
       updateQuery = updateQuery.set({ is_active: data.isActive });
+    }
+    if (data.taxRate !== undefined) {
+      updateQuery = updateQuery.set({ tax_rate: data.taxRate });
     }
 
     const updated = await updateQuery.returningAll().executeTakeFirst();

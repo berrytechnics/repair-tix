@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  deleteLocation,
-  getLocationById,
-  getLocationUsers,
-  Location,
-  LocationUser,
+    deleteLocation,
+    getLocationById,
+    getLocationUsers,
+    Location,
+    LocationUser,
 } from "@/lib/api/location.api";
 import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
@@ -218,6 +218,10 @@ export default function LocationDetailPage({
               <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">{location.email}</dd>
             </div>
           )}
+          <div>
+            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tax Rate</dt>
+            <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">{location.taxRate?.toFixed(2) || "0.00"}%</dd>
+          </div>
           <div>
             <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
             <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">

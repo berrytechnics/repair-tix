@@ -23,6 +23,8 @@ export interface CreateInventoryItemDto {
   supplier?: string | null;
   supplierPartNumber?: string | null;
   isActive?: boolean;
+  isTaxable?: boolean;
+  trackQuantity?: boolean;
 }
 
 export interface UpdateInventoryItemDto {
@@ -43,6 +45,8 @@ export interface UpdateInventoryItemDto {
   supplier?: string | null;
   supplierPartNumber?: string | null;
   isActive?: boolean;
+  isTaxable?: boolean;
+  trackQuantity?: boolean;
 }
 
 // Output type - converts snake_case to camelCase
@@ -68,6 +72,8 @@ export type InventoryItem = Omit<
   | "supplier"
   | "supplier_part_number"
   | "is_active"
+  | "is_taxable"
+  | "track_quantity"
   | "created_at"
   | "updated_at"
   | "deleted_at"
@@ -90,6 +96,8 @@ export type InventoryItem = Omit<
   supplier: string | null;
   supplierPartNumber: string | null;
   isActive: boolean;
+  isTaxable: boolean;
+  trackQuantity: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -115,6 +123,8 @@ function toInventoryItem(item: {
   supplier: string | null;
   supplier_part_number: string | null;
   is_active: boolean;
+  is_taxable: boolean;
+  track_quantity: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -138,6 +148,8 @@ function toInventoryItem(item: {
     supplier: item.supplier,
     supplierPartNumber: item.supplier_part_number,
     isActive: item.is_active,
+    isTaxable: item.is_taxable,
+    trackQuantity: item.track_quantity,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   };
@@ -206,18 +218,17 @@ export class InventoryService {
       throw new BadRequestError("Location not found or does not belong to company");
     }
 
-    // Check SKU uniqueness within company and location
+    // Check SKU uniqueness within company (company-wide, not location-specific)
     const existing = await db
       .selectFrom("inventory_items")
       .select("id")
       .where("sku", "=", data.sku)
       .where("company_id", "=", companyId)
-      .where("location_id", "=", locationId)
       .where("deleted_at", "is", null)
       .executeTakeFirst();
 
     if (existing) {
-      throw new BadRequestError(`SKU ${data.sku} already exists at this location`);
+      throw new BadRequestError(`SKU ${data.sku} already exists in this company`);
     }
 
     const item = await db
@@ -242,6 +253,8 @@ export class InventoryService {
         supplier: data.supplier || null,
         supplier_part_number: data.supplierPartNumber || null,
         is_active: data.isActive ?? true,
+        is_taxable: data.isTaxable !== undefined ? data.isTaxable : true,
+        track_quantity: data.trackQuantity !== undefined ? data.trackQuantity : true,
         created_at: sql`now()`,
         updated_at: sql`now()`,
         deleted_at: null,
@@ -266,21 +279,19 @@ export class InventoryService {
       return null;
     }
 
-    // If SKU is being updated, check uniqueness within same location
+    // If SKU is being updated, check uniqueness within company (company-wide)
     if (data.sku !== undefined && data.sku !== existing.sku) {
-      const currentLocationId = existing.location_id as string | null;
       const skuExists = await db
         .selectFrom("inventory_items")
         .select("id")
         .where("sku", "=", data.sku)
         .where("company_id", "=", companyId)
-        .where("location_id", "=", currentLocationId)
         .where("id", "!=", id)
         .where("deleted_at", "is", null)
         .executeTakeFirst();
 
       if (skuExists) {
-        throw new BadRequestError(`SKU ${data.sku} already exists at this location`);
+        throw new BadRequestError(`SKU ${data.sku} already exists in this company`);
       }
     }
 
@@ -317,11 +328,20 @@ export class InventoryService {
     if (data.compatibleWith !== undefined) {
       updateQuery = updateQuery.set({ compatible_with: data.compatibleWith || null });
     }
+    // Track if we need to sync pricing
+    let needsPriceSync = false;
+    let newSellingPrice = existing.selling_price;
+    let newCostPrice = existing.cost_price;
+
     if (data.costPrice !== undefined) {
       updateQuery = updateQuery.set({ cost_price: data.costPrice });
+      newCostPrice = data.costPrice;
+      needsPriceSync = true;
     }
     if (data.sellingPrice !== undefined) {
       updateQuery = updateQuery.set({ selling_price: data.sellingPrice });
+      newSellingPrice = data.sellingPrice;
+      needsPriceSync = true;
     }
     // Note: quantity is intentionally excluded - should be updated via purchase orders or adjustQuantity
     if (data.locationId !== undefined) {
@@ -339,22 +359,7 @@ export class InventoryService {
           throw new BadRequestError("Location not found or does not belong to company");
         }
 
-        // If location is changing, check SKU uniqueness in new location
-        if (existing.location_id !== data.locationId) {
-          const skuExists = await db
-            .selectFrom("inventory_items")
-            .select("id")
-            .where("sku", "=", existing.sku)
-            .where("company_id", "=", companyId)
-            .where("location_id", "=", data.locationId)
-            .where("id", "!=", id)
-            .where("deleted_at", "is", null)
-            .executeTakeFirst();
-
-          if (skuExists) {
-            throw new BadRequestError(`SKU ${existing.sku} already exists at the new location`);
-          }
-        }
+        // Note: SKU uniqueness is company-wide, so no need to check per location
       }
       updateQuery = updateQuery.set({ location_id: data.locationId });
     }
@@ -373,8 +378,19 @@ export class InventoryService {
     if (data.isActive !== undefined) {
       updateQuery = updateQuery.set({ is_active: data.isActive });
     }
+    if (data.isTaxable !== undefined) {
+      updateQuery = updateQuery.set({ is_taxable: data.isTaxable });
+    }
+    if (data.trackQuantity !== undefined) {
+      updateQuery = updateQuery.set({ track_quantity: data.trackQuantity });
+    }
 
     const updated = await updateQuery.returningAll().executeTakeFirst();
+
+    // Sync pricing across all locations with same SKU if prices were updated
+    if (needsPriceSync && updated) {
+      await this.syncPricingAcrossLocations(existing.sku, companyId, newSellingPrice, newCostPrice);
+    }
 
     return updated ? toInventoryItem(updated) : null;
   }
@@ -414,6 +430,7 @@ export class InventoryService {
   /**
    * Adjust inventory quantity (used by purchase orders and other processes)
    * Allows negative quantities for backordered items
+   * Only adjusts if track_quantity is true
    */
   async adjustQuantity(id: string, delta: number, companyId: string): Promise<InventoryItem> {
     const item = await db
@@ -428,6 +445,11 @@ export class InventoryService {
       throw new BadRequestError("Inventory item not found");
     }
 
+    // If track_quantity is false, don't adjust quantity
+    if (!item.track_quantity) {
+      return toInventoryItem(item);
+    }
+
     const newQuantity = item.quantity + delta;
 
     const updated = await db
@@ -440,6 +462,86 @@ export class InventoryService {
       .where("company_id", "=", companyId)
       .returningAll()
       .executeTakeFirstOrThrow();
+
+    return toInventoryItem(updated);
+  }
+
+  /**
+   * Sync pricing across all locations for a given SKU
+   * Ensures company-wide pricing consistency
+   */
+  private async syncPricingAcrossLocations(
+    sku: string,
+    companyId: string,
+    sellingPrice: number,
+    costPrice: number
+  ): Promise<void> {
+    await db
+      .updateTable("inventory_items")
+      .set({
+        selling_price: sellingPrice,
+        cost_price: costPrice,
+        updated_at: sql`now()`,
+      })
+      .where("sku", "=", sku)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .execute();
+  }
+
+  /**
+   * Update cost using dollar-cost averaging when receiving purchase orders
+   * Formula: new_cost = ((current_quantity * current_cost) + (received_quantity * received_cost)) / (current_quantity + received_quantity)
+   * Only updates if track_quantity is true
+   */
+  async updateCostWithDollarCostAverage(
+    inventoryItemId: string,
+    receivedQuantity: number,
+    receivedCost: number,
+    companyId: string
+  ): Promise<InventoryItem> {
+    const item = await db
+      .selectFrom("inventory_items")
+      .selectAll()
+      .where("id", "=", inventoryItemId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!item) {
+      throw new BadRequestError("Inventory item not found");
+    }
+
+    // Only update cost if track_quantity is true
+    if (!item.track_quantity) {
+      return toInventoryItem(item);
+    }
+
+    const currentQuantity = item.quantity;
+    const currentCost = Number(item.cost_price);
+
+    // Calculate new average cost
+    // If current quantity is 0 or negative, use received cost directly
+    const newCost =
+      currentQuantity <= 0
+        ? receivedCost
+        : (currentQuantity * currentCost + receivedQuantity * receivedCost) /
+          (currentQuantity + receivedQuantity);
+
+    // Update cost for this item
+    const updated = await db
+      .updateTable("inventory_items")
+      .set({
+        cost_price: newCost,
+        updated_at: sql`now()`,
+      })
+      .where("id", "=", inventoryItemId)
+      .where("company_id", "=", companyId)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    // Sync cost across all locations with same SKU
+    await this.syncPricingAcrossLocations(item.sku, companyId, item.selling_price, newCost);
 
     return toInventoryItem(updated);
   }

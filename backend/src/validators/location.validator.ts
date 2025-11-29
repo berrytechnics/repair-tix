@@ -33,6 +33,10 @@ export const createLocationValidation = [
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
+  body("taxRate")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Tax rate must be between 0 and 100"),
 ];
 
 /**
@@ -67,6 +71,10 @@ export const updateLocationValidation = [
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
+  body("taxRate")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("Tax rate must be between 0 and 100"),
 ];
 
 

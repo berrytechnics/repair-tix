@@ -493,6 +493,14 @@ export class PurchaseOrderService {
         receivedItem.quantityReceived,
         companyId
       );
+
+      // Update cost using dollar-cost averaging
+      await inventoryService.updateCostWithDollarCostAverage(
+        item.inventory_item_id,
+        receivedItem.quantityReceived,
+        item.unit_cost,
+        companyId
+      );
     }
 
     // Update purchase order status and received date

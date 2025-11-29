@@ -13,7 +13,6 @@ export interface CreateInvoiceDto {
   ticketId?: string | null;
   status?: InvoiceStatus;
   subtotal?: number;
-  taxRate?: number;
   taxAmount?: number;
   discountAmount?: number;
   totalAmount?: number;
@@ -31,7 +30,6 @@ export interface UpdateInvoiceDto {
   ticketId?: string | null;
   status?: InvoiceStatus;
   subtotal?: number;
-  taxRate?: number;
   taxAmount?: number;
   discountAmount?: number;
   totalAmount?: number;
@@ -121,15 +119,21 @@ export type InvoiceItem = Omit<
   | "unit_price"
   | "discount_percent"
   | "discount_amount"
+  | "is_taxable"
   | "created_at"
   | "updated_at"
 > & {
   id: string;
   invoiceId: string;
   inventoryItemId: string | null;
+  description: string;
+  quantity: number;
   unitPrice: number;
   discountPercent: number;
   discountAmount: number;
+  subtotal: number;
+  type: "part" | "service" | "other";
+  isTaxable: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -146,6 +150,7 @@ function toInvoiceItem(item: {
   discount_amount: number;
   subtotal: number;
   type: "part" | "service" | "other";
+  is_taxable: boolean;
   created_at: Date;
   updated_at: Date;
 }): InvoiceItem {
@@ -160,6 +165,7 @@ function toInvoiceItem(item: {
     discountAmount: item.discount_amount,
     subtotal: item.subtotal,
     type: item.type,
+    isTaxable: item.is_taxable,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   };
@@ -304,10 +310,10 @@ export class InvoiceService {
   }
 
   async create(data: CreateInvoiceDto, companyId: string, locationId: string): Promise<Invoice> {
-    // Verify location belongs to company
+    // Verify location belongs to company and get tax rate
     const location = await db
       .selectFrom("locations")
-      .select("id")
+      .select(["id", "tax_rate"])
       .where("id", "=", locationId)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
@@ -321,8 +327,9 @@ export class InvoiceService {
     const invoiceNumber = await generateInvoiceNumber(companyId);
 
     const subtotal = data.subtotal ?? 0;
-    const taxRate = data.taxRate ?? 0;
-    const taxAmount = data.taxAmount ?? subtotal * (taxRate / 100);
+    const taxRate = Number(location.tax_rate);
+    // Tax will be recalculated based on taxable items when items are added
+    const taxAmount = data.taxAmount ?? 0;
     const discountAmount = data.discountAmount ?? 0;
     const totalAmount = data.totalAmount ?? subtotal + taxAmount - discountAmount;
 
@@ -412,9 +419,7 @@ export class InvoiceService {
     if (data.subtotal !== undefined) {
       updateQuery = updateQuery.set({ subtotal: data.subtotal });
     }
-    if (data.taxRate !== undefined) {
-      updateQuery = updateQuery.set({ tax_rate: data.taxRate });
-    }
+    // Note: tax_rate is now managed automatically from location, don't allow manual updates
     if (data.taxAmount !== undefined) {
       updateQuery = updateQuery.set({ tax_amount: data.taxAmount });
     }
@@ -510,13 +515,18 @@ export class InvoiceService {
       .where("invoice_id", "=", invoiceId)
       .execute();
 
-    // Calculate subtotal from items
+    // Calculate subtotal from all items
     const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
-    // Get invoice to get tax rate and discount
+    // Calculate taxable subtotal (only from taxable items)
+    const taxableSubtotal = items
+      .filter((item) => item.is_taxable)
+      .reduce((sum, item) => sum + Number(item.subtotal), 0);
+
+    // Get invoice to get location_id and discount
     const invoice = await db
       .selectFrom("invoices")
-      .select(["tax_rate", "discount_amount"])
+      .select(["location_id", "discount_amount"])
       .where("id", "=", invoiceId)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
@@ -526,16 +536,33 @@ export class InvoiceService {
       throw new NotFoundError("Invoice not found");
     }
 
-    const taxRate = Number(invoice.tax_rate);
+    // Get tax rate from location
+    let taxRate = 0;
+    if (invoice.location_id) {
+      const location = await db
+        .selectFrom("locations")
+        .select("tax_rate")
+        .where("id", "=", invoice.location_id)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (location) {
+        taxRate = Number(location.tax_rate);
+      }
+    }
+
     const discountAmount = Number(invoice.discount_amount);
-    const taxAmount = subtotal * (taxRate / 100);
+    // Apply tax only to taxable items
+    const taxAmount = taxableSubtotal * (taxRate / 100);
     const totalAmount = subtotal + taxAmount - discountAmount;
 
-    // Update invoice totals
+    // Update invoice totals and tax_rate
     await db
       .updateTable("invoices")
       .set({
         subtotal: subtotal,
+        tax_rate: taxRate,
         tax_amount: taxAmount,
         total_amount: totalAmount,
         updated_at: sql`now()`,
@@ -552,6 +579,22 @@ export class InvoiceService {
     const invoice = await this.findById(data.invoiceId, companyId);
     if (!invoice) {
       throw new NotFoundError("Invoice not found");
+    }
+
+    // Determine if item is taxable (from inventory_item if linked, otherwise default to true)
+    let isTaxable = true;
+    if (data.inventoryItemId) {
+      const inventoryItem = await db
+        .selectFrom("inventory_items")
+        .select("is_taxable")
+        .where("id", "=", data.inventoryItemId)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (inventoryItem) {
+        isTaxable = inventoryItem.is_taxable;
+      }
     }
 
     // Calculate item subtotal
@@ -574,6 +617,7 @@ export class InvoiceService {
         discount_amount: discountAmount,
         subtotal: finalSubtotal,
         type: data.type,
+        is_taxable: isTaxable,
         created_at: sql`now()`,
         updated_at: sql`now()`,
       })

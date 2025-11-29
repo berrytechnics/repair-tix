@@ -19,6 +19,8 @@ export interface InventoryItem {
   supplier: string | null;
   supplierPartNumber: string | null;
   isActive: boolean;
+  isTaxable: boolean;
+  trackQuantity: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,6 +84,8 @@ export interface CreateInventoryItemData {
   supplier?: string | null;
   supplierPartNumber?: string | null;
   isActive?: boolean;
+  isTaxable?: boolean;
+  trackQuantity?: boolean;
 }
 
 export interface UpdateInventoryItemData {
@@ -100,6 +104,8 @@ export interface UpdateInventoryItemData {
   supplier?: string | null;
   supplierPartNumber?: string | null;
   isActive?: boolean;
+  isTaxable?: boolean;
+  trackQuantity?: boolean;
 }
 
 export const createInventoryItem = async (

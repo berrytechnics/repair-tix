@@ -38,6 +38,8 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
     supplier: "",
     supplierPartNumber: "",
     isActive: true,
+    isTaxable: true,
+    trackQuantity: true,
   });
 
   useEffect(() => {
@@ -65,6 +67,8 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
               supplier: item.supplier || "",
               supplierPartNumber: item.supplierPartNumber || "",
               isActive: item.isActive,
+              isTaxable: item.isTaxable !== undefined ? item.isTaxable : true,
+              trackQuantity: item.trackQuantity !== undefined ? item.trackQuantity : true,
             });
           }
         } catch (err) {
@@ -101,6 +105,8 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
           supplier: formData.supplier || null,
           supplierPartNumber: formData.supplierPartNumber || null,
           isActive: formData.isActive,
+          isTaxable: formData.isTaxable,
+          trackQuantity: formData.trackQuantity,
         };
         const response = await updateInventoryItem(itemId, updateData);
         if (response.data) {
@@ -124,6 +130,8 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
           supplier: formData.supplier || null,
           supplierPartNumber: formData.supplierPartNumber || null,
           isActive: formData.isActive,
+          isTaxable: formData.isTaxable,
+          trackQuantity: formData.trackQuantity,
         };
         const response = await createInventoryItem(createData);
         if (response.data) {
@@ -291,7 +299,7 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
             </div>
-            {!isEditMode && (
+            {!isEditMode && formData.trackQuantity && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Initial Quantity (negative values allowed for backordered items)
@@ -371,6 +379,34 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
                 />
                 <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
               </label>
+            </div>
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.isTaxable}
+                  onChange={(e) => setFormData({ ...formData, isTaxable: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Is Taxable</span>
+              </label>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Uncheck for services like labor that may not be taxable
+              </p>
+            </div>
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.trackQuantity}
+                  onChange={(e) => setFormData({ ...formData, trackQuantity: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Track Quantity</span>
+              </label>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Uncheck for services that don't have physical inventory
+              </p>
             </div>
           </div>
         </div>

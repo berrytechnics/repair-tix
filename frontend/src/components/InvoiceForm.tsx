@@ -6,6 +6,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Customer, getCustomers } from "@/lib/api/customer.api";
 
 import { Ticket, getTickets, getTicketById } from "@/lib/api/ticket.api";
+import { useUser } from "@/lib/UserContext";
+import { getLocationById, Location } from "@/lib/api/location.api";
 
 import {
   CreateInvoiceData,
@@ -28,7 +30,6 @@ interface InvoiceFormState {
   status: "draft" | "issued" | "paid" | "overdue" | "cancelled";
   invoiceItems: InvoiceItem[];
   subtotal: number;
-  taxRate: number;
   discountAmount: number;
   notes?: string;
 }
@@ -41,6 +42,11 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = !!invoiceId;
+  const { user } = useUser();
+
+  // Location and tax rate state
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [locationTaxRate, setLocationTaxRate] = useState<number>(0);
 
   // Form state
   const [formData, setFormData] = useState<InvoiceFormState>({
@@ -48,7 +54,6 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     status: "draft",
     invoiceItems: [],
     subtotal: 0,
-    taxRate: 0,
     discountAmount: 0,
   });
 
@@ -70,6 +75,25 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     discountPercent: 0,
     type: "service",
   });
+
+  // Fetch location tax rate when user's current location is available
+  useEffect(() => {
+    const fetchLocationTaxRate = async () => {
+      if (user?.currentLocationId) {
+        try {
+          const locationResponse = await getLocationById(user.currentLocationId);
+          if (locationResponse.data) {
+            setCurrentLocation(locationResponse.data);
+            setLocationTaxRate(locationResponse.data.taxRate || 0);
+          }
+        } catch (error) {
+          console.error("Failed to fetch location:", error);
+        }
+      }
+    };
+
+    fetchLocationTaxRate();
+  }, [user?.currentLocationId]);
 
   // Fetch customers and tickets on component mount
   useEffect(() => {
@@ -155,10 +179,21 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               status: response.data.status,
               invoiceItems: normalizedItems,
               subtotal: Number(response.data.subtotal || 0),
-              taxRate: Number(response.data.taxRate || 0),
               discountAmount: Number(response.data.discountAmount || 0),
               notes: response.data.notes,
             });
+            // Fetch location tax rate from invoice's location
+            if (response.data.locationId) {
+              try {
+                const locationResponse = await getLocationById(response.data.locationId);
+                if (locationResponse.data) {
+                  setCurrentLocation(locationResponse.data);
+                  setLocationTaxRate(locationResponse.data.taxRate || 0);
+                }
+              } catch (error) {
+                console.error("Failed to fetch invoice location:", error);
+              }
+            }
           }
         } catch (error) {
           console.error("Failed to fetch invoice details", error);
@@ -173,20 +208,37 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
   }, [invoiceId, isEditMode]);
 
   // Calculate totals (now used in multiple places)
-  const { subtotal, total } = useMemo(() => {
+  const { subtotal, taxableSubtotal, nonTaxableSubtotal, taxAmount, total } = useMemo(() => {
     const calcSubtotal = formData.invoiceItems.reduce(
-      (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      (sum, item) => {
+        const itemSubtotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+        const discount = item.discountPercent ? itemSubtotal * (item.discountPercent / 100) : 0;
+        return sum + itemSubtotal - discount;
+      },
       0
     );
-    const calcTaxAmount = (calcSubtotal * Number(formData.taxRate || 0)) / 100;
+
+    // Calculate taxable and non-taxable subtotals
+    const calcTaxableSubtotal = formData.invoiceItems
+      .filter((item) => item.isTaxable !== false) // Default to taxable if not set
+      .reduce((sum, item) => {
+        const itemSubtotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+        const discount = item.discountPercent ? itemSubtotal * (item.discountPercent / 100) : 0;
+        return sum + itemSubtotal - discount;
+      }, 0);
+
+    const calcNonTaxableSubtotal = calcSubtotal - calcTaxableSubtotal;
+    const calcTaxAmount = (calcTaxableSubtotal * locationTaxRate) / 100;
     const calcTotal = calcSubtotal + calcTaxAmount - Number(formData.discountAmount || 0);
 
     return {
       subtotal: calcSubtotal,
+      taxableSubtotal: calcTaxableSubtotal,
+      nonTaxableSubtotal: calcNonTaxableSubtotal,
       taxAmount: calcTaxAmount,
       total: calcTotal,
     };
-  }, [formData.invoiceItems, formData.taxRate, formData.discountAmount]);
+  }, [formData.invoiceItems, locationTaxRate, formData.discountAmount]);
 
   // Handle general form input changes
   const handleInputChange = (
@@ -197,7 +249,7 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     const { name, value } = e.target;
 
     // Handle numeric conversions
-    const numericFields = ["subtotal", "taxRate", "discountAmount"];
+    const numericFields = ["subtotal", "discountAmount"];
     const processedValue = numericFields.includes(name) ? Number(value) : value;
 
     setFormData((prevState) => ({
@@ -269,9 +321,20 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             ...prevState,
             invoiceItems: invoice.invoiceItems || [],
             subtotal: invoice.subtotal,
-            taxRate: invoice.taxRate,
             discountAmount: invoice.discountAmount,
           }));
+          // Update location tax rate from invoice's location
+          if (invoice.locationId) {
+            try {
+              const locationResponse = await getLocationById(invoice.locationId);
+              if (locationResponse.data) {
+                setCurrentLocation(locationResponse.data);
+                setLocationTaxRate(locationResponse.data.taxRate || 0);
+              }
+            } catch (error) {
+              console.error("Failed to fetch invoice location:", error);
+            }
+          }
         }
       } catch (error) {
         console.error("Error adding item:", error);
@@ -322,9 +385,20 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             ...prevState,
             invoiceItems: invoice.invoiceItems || [],
             subtotal: invoice.subtotal,
-            taxRate: invoice.taxRate,
             discountAmount: invoice.discountAmount,
           }));
+          // Update location tax rate from invoice's location
+          if (invoice.locationId) {
+            try {
+              const locationResponse = await getLocationById(invoice.locationId);
+              if (locationResponse.data) {
+                setCurrentLocation(locationResponse.data);
+                setLocationTaxRate(locationResponse.data.taxRate || 0);
+              }
+            } catch (error) {
+              console.error("Failed to fetch invoice location:", error);
+            }
+          }
         }
       } catch (error) {
         console.error("Error removing item:", error);
@@ -397,7 +471,6 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         ticketId: formData.ticketId,
         status: formData.status,
         subtotal,
-        taxRate: formData.taxRate,
         discountAmount: formData.discountAmount,
         notes: formData.notes,
         invoiceItems,
@@ -584,24 +657,57 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         </div>
 
         {/* Financial Details */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Taxable Subtotal</label>
+            <input
+              type="number"
+              readOnly
+              value={taxableSubtotal.toFixed(2)}
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded p-2 bg-gray-100 dark:bg-gray-800"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Non-Taxable Subtotal</label>
+            <input
+              type="number"
+              readOnly
+              value={nonTaxableSubtotal.toFixed(2)}
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded p-2 bg-gray-100 dark:bg-gray-800"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Subtotal</label>
             <input
               type="number"
               readOnly
-              value={subtotal}
+              value={subtotal.toFixed(2)}
               className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded p-2 bg-gray-100 dark:bg-gray-800"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tax Rate (%)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Tax Rate (%) {currentLocation && `(${currentLocation.name})`}
+            </label>
             <input
               type="number"
-              name="taxRate"
-              value={formData.taxRate}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
+              readOnly
+              value={locationTaxRate.toFixed(2)}
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded p-2 bg-gray-100 dark:bg-gray-800"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Tax rate from location (read-only)
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tax Amount</label>
+            <input
+              type="number"
+              readOnly
+              value={taxAmount.toFixed(2)}
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded p-2 bg-gray-100 dark:bg-gray-800"
             />
           </div>
           <div>
@@ -684,3 +790,4 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     </div>
   );
 }
+

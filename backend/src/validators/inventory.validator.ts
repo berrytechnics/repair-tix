@@ -48,6 +48,14 @@ export const createInventoryValidation = [
     .withMessage("Reorder level is required")
     .isInt({ min: 0 })
     .withMessage("Reorder level must be a non-negative integer"),
+  body("isTaxable")
+    .optional()
+    .isBoolean()
+    .withMessage("isTaxable must be a boolean"),
+  body("trackQuantity")
+    .optional()
+    .isBoolean()
+    .withMessage("trackQuantity must be a boolean"),
 ];
 
 /**
@@ -90,6 +98,14 @@ export const updateInventoryValidation = [
     .optional()
     .isInt({ min: 0 })
     .withMessage("Reorder level must be a non-negative integer"),
+  body("isTaxable")
+    .optional()
+    .isBoolean()
+    .withMessage("isTaxable must be a boolean"),
+  body("trackQuantity")
+    .optional()
+    .isBoolean()
+    .withMessage("trackQuantity must be a boolean"),
   body("locationId")
     .optional({ values: "falsy" })
     .custom((value) => {

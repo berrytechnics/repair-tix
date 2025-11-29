@@ -21,10 +21,7 @@ export const createInvoiceValidation = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Subtotal must be a non-negative number"),
-  body("taxRate")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Tax rate must be between 0 and 100"),
+  // Note: taxRate is now automatically set from location, not accepted in request
   body("taxAmount")
     .optional()
     .isFloat({ min: 0 })
@@ -178,10 +175,7 @@ export const updateInvoiceValidation = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Subtotal must be a non-negative number"),
-  body("taxRate")
-    .optional()
-    .isFloat({ min: 0, max: 100 })
-    .withMessage("Tax rate must be between 0 and 100"),
+  // Note: taxRate is now automatically set from location, not accepted in request
   body("taxAmount")
     .optional()
     .isFloat({ min: 0 })
