@@ -39,6 +39,8 @@ services:
           property: database
       - key: JWT_SECRET
         generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
       - key: IS_DOCKER
         value: "true"
     buildCommand: yarn install --frozen-lockfile && yarn build

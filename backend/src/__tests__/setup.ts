@@ -4,6 +4,7 @@
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_secret_for_ci_only';
+process.env.ENCRYPTION_KEY = 'test-encryption-key-minimum-32-characters-long-for-testing';
 
 // Ensure database connection variables are set for tests
 // These should match GitHub Actions test database configuration

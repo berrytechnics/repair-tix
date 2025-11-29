@@ -13,10 +13,9 @@ cleanup() {
   echo ""
   echo "Cleaning up test database..."
   "${SCRIPT_DIR}/teardown-test-db.sh" || true
-  if [ $EXIT_CODE -ne 0 ]; then
-    echo "Tests failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
-  fi
+  # Exit with the captured exit code to propagate failures
+  # (Failure messages are already printed by the main script)
+  exit $EXIT_CODE
 }
 
 # Set trap to ensure cleanup happens
@@ -50,10 +49,26 @@ export DB_PASSWORD=test_password
 export DB_NAME=test_db
 export JWT_SECRET=test_secret_for_ci_only
 
+# Run tests and capture exit code
+# Temporarily disable set -e to capture exit code even on failure
+set +e
 yarn test
+TEST_EXIT_CODE=$?
+set -e
 
-echo ""
-echo "========================================="
-echo "All tests passed!"
-echo "========================================="
+# Only print success message if tests actually passed
+if [ $TEST_EXIT_CODE -eq 0 ]; then
+  echo ""
+  echo "========================================="
+  echo "All tests passed!"
+  echo "========================================="
+else
+  echo ""
+  echo "========================================="
+  echo "Tests failed with exit code $TEST_EXIT_CODE"
+  echo "========================================="
+fi
+
+# Exit with the test exit code to propagate failures
+exit $TEST_EXIT_CODE
 

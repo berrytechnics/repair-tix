@@ -6,6 +6,8 @@ import { BadRequestError } from "../config/errors.js";
 import { TicketPriority, TicketStatus, TicketTable } from "../config/types.js";
 import assetService from "./asset.service.js";
 import diagnosticChecklistService from "./diagnostic-checklist.service.js";
+import customerService from "./customer.service.js";
+import emailService from "../integrations/email/email.service.js";
 
 // Input DTOs
 export interface CreateTicketDto {
@@ -369,6 +371,15 @@ export class TicketService {
       updateQuery = updateQuery.set({ technician_id: data.technicianId || null });
     }
     if (data.status !== undefined) {
+      // Validate checklist completion if moving to completed status
+      if (data.status === "completed") {
+        const validation = await diagnosticChecklistService.validateRequiredItems(id, companyId);
+        if (!validation.valid) {
+          throw new BadRequestError(
+            `Cannot complete ticket. Required checklist items are missing: ${validation.missingItems.join(", ")}`
+          );
+        }
+      }
       updateQuery = updateQuery.set({ status: data.status });
     }
     if (data.priority !== undefined) {
@@ -414,7 +425,22 @@ export class TicketService {
       .returningAll()
       .executeTakeFirst();
 
-    return updated ? toTicket(updated) : null;
+    const ticket = updated ? toTicket(updated) : null;
+
+    // Send email notification if ticket was updated and status changed
+    if (ticket && data.status !== undefined) {
+      try {
+        const customer = await customerService.findById(ticket.customerId, companyId);
+        if (customer) {
+          await emailService.sendTicketStatusEmail(companyId, ticket, customer);
+        }
+      } catch {
+        // Don't fail ticket update if email fails - just log error
+        // Error is already logged in emailService
+      }
+    }
+
+    return ticket;
   }
 
   async delete(id: string, companyId: string): Promise<boolean> {
@@ -472,7 +498,22 @@ export class TicketService {
       .returningAll()
       .executeTakeFirst();
 
-    return updated ? toTicket(updated) : null;
+    const ticket = updated ? toTicket(updated) : null;
+
+    // Send email notification if ticket was updated and status changed
+    if (ticket) {
+      try {
+        const customer = await customerService.findById(ticket.customerId, companyId);
+        if (customer) {
+          await emailService.sendTicketStatusEmail(companyId, ticket, customer);
+        }
+      } catch {
+        // Don't fail ticket update if email fails - just log error
+        // Error is already logged in emailService
+      }
+    }
+
+    return ticket;
   }
 
   async validateChecklistCompletion(ticketId: string, companyId: string): Promise<{ valid: boolean; missingItems: string[] }> {

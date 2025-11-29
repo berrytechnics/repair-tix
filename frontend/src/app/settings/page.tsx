@@ -4,6 +4,7 @@ import { useUser } from "@/lib/UserContext";
 import {
   ClipboardDocumentCheckIcon,
   Cog6ToothIcon,
+  EnvelopeIcon,
   MapPinIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
@@ -55,6 +56,14 @@ export default function SettingsPage() {
       description: "Manage business locations",
       href: "/locations",
       icon: MapPinIcon,
+      permission: "settings.access",
+      adminOnly: true,
+    },
+    {
+      name: "Email Integration",
+      description: "Configure email service for automated notifications",
+      href: "/settings/integrations/email",
+      icon: EnvelopeIcon,
       permission: "settings.access",
       adminOnly: true,
     },

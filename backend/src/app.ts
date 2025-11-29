@@ -9,6 +9,7 @@ import customerRoutes from "./routes/customer.routes.js";
 import diagnosticChecklistRoutes from "./routes/diagnostic-checklist.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import inventoryTransferRoutes from "./routes/inventory-transfer.routes.js";
+import integrationRoutes from "./routes/integration.routes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import locationRoutes from "./routes/location.routes.js";
@@ -40,6 +41,7 @@ app.use("/api/inventory-transfers", inventoryTransferRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/reporting", reportingRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/integrations", integrationRoutes);
 app.use("/api/locations", locationRoutes);
 
 // Health check endpoint

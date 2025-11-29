@@ -2,8 +2,10 @@
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection.js";
-import { InvoiceStatus, InvoiceTable, InvoiceItemTable } from "../config/types.js";
 import { NotFoundError } from "../config/errors.js";
+import { InvoiceItemTable, InvoiceStatus, InvoiceTable } from "../config/types.js";
+import emailService from "../integrations/email/email.service.js";
+import customerService from "./customer.service.js";
 
 // Input DTOs
 export interface CreateInvoiceDto {
@@ -348,7 +350,22 @@ export class InvoiceService {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    return toInvoice(invoice);
+    const createdInvoice = toInvoice(invoice);
+
+    // Send email notification if invoice is issued (not draft)
+    if (createdInvoice.status === 'issued' || createdInvoice.status === 'paid') {
+      try {
+        const customer = await customerService.findById(createdInvoice.customerId, companyId);
+        if (customer) {
+          await emailService.sendInvoiceEmail(companyId, createdInvoice, customer);
+        }
+      } catch {
+        // Don't fail invoice creation if email fails - just log error
+        // Error is already logged in emailService
+      }
+    }
+
+    return createdInvoice;
   }
 
   async update(id: string, data: UpdateInvoiceDto, companyId: string): Promise<(Invoice & { invoiceItems?: InvoiceItem[] }) | null> {
@@ -443,6 +460,20 @@ export class InvoiceService {
       .execute();
 
     const invoiceData = toInvoice(updated);
+
+    // Send email notification if status changed to issued or paid
+    if (data.status === 'issued' || data.status === 'paid') {
+      try {
+        const customer = await customerService.findById(invoiceData.customerId, companyId);
+        if (customer) {
+          await emailService.sendInvoiceEmail(companyId, invoiceData, customer);
+        }
+      } catch {
+        // Don't fail invoice update if email fails - just log error
+        // Error is already logged in emailService
+      }
+    }
+
     return {
       ...invoiceData,
       invoiceItems: items.map(toInvoiceItem),
@@ -696,10 +727,23 @@ export class InvoiceService {
       .execute();
 
     const invoiceData = toInvoice(updated);
-    return {
+    const result = {
       ...invoiceData,
       invoiceItems: items.map(toInvoiceItem),
     };
+
+    // Send email notification for payment confirmation
+    try {
+      const customer = await customerService.findById(invoiceData.customerId, companyId);
+      if (customer) {
+        await emailService.sendInvoiceEmail(companyId, invoiceData, customer);
+      }
+    } catch {
+      // Don't fail payment if email fails - just log error
+      // Error is already logged in emailService
+    }
+
+    return result;
   }
 
   // Get invoice items

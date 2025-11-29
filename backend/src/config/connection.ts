@@ -15,10 +15,12 @@ export const db = new Kysely<Database>({
       password: process.env.DB_PASSWORD,
       port: parseInt(process.env.DB_PORT || "5432", 10),
       // Connection pool settings
-      max: 10,
+      // Increase pool size for tests to handle parallel test execution
+      max: process.env.NODE_ENV === "test" ? 20 : 10,
       // Reduce idle timeout in test environment to help Jest exit faster
       idleTimeoutMillis: process.env.NODE_ENV === "test" ? 1000 : 30000,
-      connectionTimeoutMillis: 2000,
+      // Increase connection timeout for tests to handle database startup delays
+      connectionTimeoutMillis: process.env.NODE_ENV === "test" ? 5000 : 2000,
     }),
   }),
   // Add query logging

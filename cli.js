@@ -549,7 +549,7 @@ program
           { cmd: "bash scripts/test-with-setup.sh", name: "Tests", useTestSetup: true },
         ];
 
-        checks.forEach((check) => {
+        for (const check of checks) {
           log(`Running ${check.name}...`, "blue");
           if (check.useTestSetup) {
             // Use test setup script for tests (matches GitHub Actions)
@@ -563,7 +563,9 @@ program
               cwd: path.join(process.cwd(), "backend"),
             });
           }
-        });
+        }
+        
+        // Only reached if all checks passed (executeCommand exits on failure)
         log("All CI checks passed!", "green");
       }
     }

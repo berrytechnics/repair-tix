@@ -50,11 +50,16 @@ describe("Location Middleware", () => {
 
   afterEach(async () => {
     // Clean up all test data
-    await cleanupTestData({
-      companyIds: testCompanyIds,
-      userIds: testUserIds,
-      locationIds: testLocationIds,
-    });
+    try {
+      await cleanupTestData({
+        companyIds: testCompanyIds,
+        userIds: testUserIds,
+        locationIds: testLocationIds,
+      });
+    } catch (error) {
+      // Log but don't fail the test suite if cleanup has issues
+      console.error('Error during cleanup:', error);
+    }
     testCompanyIds = [];
     testUserIds = [];
     testLocationIds = [];

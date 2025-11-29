@@ -182,6 +182,7 @@ After backend is deployed:
 | `DB_PASSWORD` | Database password | From Render DB service |
 | `DB_NAME` | Database name | `repair_business` |
 | `JWT_SECRET` | JWT signing secret | Generate secure random string |
+| `ENCRYPTION_KEY` | Encryption key for API keys (32+ chars) | Generate secure random string (see below) |
 | `IS_DOCKER` | Docker flag | `true` |
 
 ### Frontend Service
@@ -202,6 +203,25 @@ openssl rand -base64 32
 
 # Using Node.js
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+### Generating Encryption Key
+
+The `ENCRYPTION_KEY` is used to encrypt customer API keys stored in the database. It must be at least 32 characters long.
+
+```bash
+# Using openssl (recommended)
+openssl rand -base64 32
+
+# Using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+**Important**: 
+- Never commit the encryption key to git
+- Store it securely in environment variables
+- If you change the encryption key, all encrypted credentials will need to be re-encrypted
+- Use a strong, randomly generated key (32+ characters)
 ```
 
 ## Post-Deployment Tasks
