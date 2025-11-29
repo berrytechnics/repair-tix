@@ -43,3 +43,34 @@ body {
     @apply text-gray-700 dark:text-gray-300;
   }
 }
+
+/* Square Payment Form Dark Mode Styles */
+.dark #square-card-container .sq-input,
+.dark #square-card-container input {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #e5e7eb !important; /* gray-200 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+.dark #square-card-container .sq-input:focus,
+.dark #square-card-container input:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+  background-color: #1f2937 !important;
+  outline: none;
+}
+
+.dark #square-card-container .sq-input::placeholder,
+.dark #square-card-container input::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+.dark #square-card-container .sq-input-container,
+.dark #square-card-container .sq-input-wrapper {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark #square-card-container .sq-input-container.is-focus,
+.dark #square-card-container .sq-input-wrapper.is-focus {
+  border-color: #3b82f6 !important;
+}

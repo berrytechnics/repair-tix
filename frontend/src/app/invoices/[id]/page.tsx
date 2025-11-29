@@ -9,8 +9,11 @@ import {
   removeInvoiceItem,
   updateInvoiceItem,
 } from "@/lib/api/invoice.api";
+import { getIntegration } from "@/lib/api/integration.api";
+import { processPayment, refundPayment } from "@/lib/api/payment.api";
 import { useUser } from "@/lib/UserContext";
 import { generateInvoicePDF } from "@/lib/utils/pdfGenerator";
+import SquarePaymentForm from "@/components/SquarePaymentForm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,6 +33,12 @@ export default function InvoiceDetailPage({
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showProcessPaymentModal, setShowProcessPaymentModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [isPaymentConfigured, setIsPaymentConfigured] = useState(false);
+  const [paymentProvider, setPaymentProvider] = useState<string | null>(null);
+  const [paymentConfig, setPaymentConfig] = useState<any>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // New item form state
   const [newItem, setNewItem] = useState({
@@ -79,6 +88,29 @@ export default function InvoiceDetailPage({
 
     fetchInvoice();
   }, [params.id]);
+
+  // Check if payment integration is configured
+  useEffect(() => {
+    const checkPaymentIntegration = async () => {
+      try {
+        const response = await getIntegration("payment");
+        if (response && response.data) {
+          setIsPaymentConfigured(response.data.enabled === true);
+          setPaymentProvider(response.data.provider);
+          setPaymentConfig(response.data);
+        } else {
+          setIsPaymentConfigured(false);
+          setPaymentProvider(null);
+          setPaymentConfig(null);
+        }
+      } catch (err) {
+        setIsPaymentConfigured(false);
+        setPaymentProvider(null);
+        setPaymentConfig(null);
+      }
+    };
+    checkPaymentIntegration();
+  }, []);
 
   // Refresh invoice data
   const refreshInvoice = async () => {
@@ -251,6 +283,57 @@ export default function InvoiceDetailPage({
     }
   };
 
+  // Handle process payment
+  const handleProcessPayment = async (sourceId?: string) => {
+    if (!invoice) return;
+
+    setIsProcessingPayment(true);
+    try {
+      const result = await processPayment({
+        invoiceId: invoice.id,
+        sourceId, // Card nonce from Square SDK
+      });
+      await refreshInvoice();
+      setShowProcessPaymentModal(false);
+      alert(`Payment processed successfully! Transaction ID: ${result.data.transactionId}`);
+    } catch (err) {
+      console.error("Error processing payment:", err);
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to process payment. Please try again.";
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Handle refund payment
+  const handleRefundPayment = async (amount?: number, reason?: string) => {
+    if (!invoice || !invoice.paymentReference) return;
+
+    setIsProcessingPayment(true);
+    try {
+      const result = await refundPayment({
+        transactionId: invoice.paymentReference,
+        amount,
+        reason,
+      });
+      await refreshInvoice();
+      setShowRefundModal(false);
+      alert(`Refund processed successfully! Refund ID: ${result.data.refundId}`);
+    } catch (err) {
+      console.error("Error processing refund:", err);
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to process refund. Please try again.";
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   // Handle PDF generation
   const handleGeneratePDF = async () => {
     if (!invoice) return;
@@ -399,12 +482,34 @@ export default function InvoiceDetailPage({
               </button>
             )}
             {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+              <>
+                {isPaymentConfigured && hasPermission("payments.process") && (
+                  <button
+                    onClick={() => setShowProcessPaymentModal(true)}
+                    disabled={isProcessingPayment}
+                    className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                  >
+                    {isProcessingPayment ? "Processing..." : "Process Payment"}
+                  </button>
+                )}
+                {hasPermission("invoices.markPaid") && (
+                  <button
+                    onClick={() => setShowMarkPaidModal(true)}
+                    disabled={isProcessing}
+                    className="inline-flex items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                  >
+                    Mark as Paid
+                  </button>
+                )}
+              </>
+            )}
+            {invoice.status === "paid" && invoice.paymentReference && hasPermission("payments.refund") && (
               <button
-                onClick={() => setShowMarkPaidModal(true)}
-                disabled={isProcessing}
-                className="inline-flex items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                onClick={() => setShowRefundModal(true)}
+                disabled={isProcessingPayment}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50"
               >
-                Mark as Paid
+                Refund Payment
               </button>
             )}
           </div>
@@ -827,6 +932,28 @@ export default function InvoiceDetailPage({
             isProcessing={isProcessing}
           />
         )}
+
+        {/* Process Payment Modal */}
+        {showProcessPaymentModal && invoice && (
+          <ProcessPaymentModal
+            invoice={invoice}
+            paymentProvider={paymentProvider}
+            paymentConfig={paymentConfig}
+            onClose={() => setShowProcessPaymentModal(false)}
+            onConfirm={handleProcessPayment}
+            isProcessing={isProcessingPayment}
+          />
+        )}
+
+        {/* Refund Payment Modal */}
+        {showRefundModal && invoice && (
+          <RefundPaymentModal
+            invoice={invoice}
+            onClose={() => setShowRefundModal(false)}
+            onConfirm={handleRefundPayment}
+            isProcessing={isProcessingPayment}
+          />
+        )}
       </div>
     </div>
   );
@@ -949,6 +1076,251 @@ function MarkInvoicePaidModal({
               className="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
             >
               {isProcessing ? "Processing..." : "Mark as Paid"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Process Payment Modal Component
+function ProcessPaymentModal({
+  invoice,
+  paymentProvider,
+  paymentConfig,
+  onClose,
+  onConfirm,
+  isProcessing,
+}: {
+  invoice: Invoice;
+  paymentProvider: string | null;
+  paymentConfig: any;
+  onClose: () => void;
+  onConfirm: (sourceId?: string) => void;
+  isProcessing: boolean;
+}) {
+  const [paymentError, setPaymentError] = useState("");
+
+  // Handle Square payment success
+  const handleSquarePaymentSuccess = (sourceId: string) => {
+    setPaymentError("");
+    onConfirm(sourceId);
+  };
+
+  // Handle Square payment error
+  const handleSquarePaymentError = (error: string) => {
+    setPaymentError(error);
+  };
+
+  // For Square, show the payment form
+  if (paymentProvider === "square" && paymentConfig?.applicationId) {
+    const locationId = paymentConfig.locationId || "";
+    
+    // Debug logging
+    console.log("Square payment modal config:", {
+      applicationId: paymentConfig.applicationId,
+      locationId: locationId,
+      testMode: paymentConfig.settings?.testMode,
+    });
+    
+    return (
+      <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black opacity-30" onClick={onClose}></div>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+            Process Payment - Square
+          </h3>
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Invoice: <strong>{invoice.invoiceNumber}</strong>
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Amount: <strong>${Number(invoice.totalAmount).toFixed(2)}</strong>
+            </p>
+          </div>
+          
+          {paymentError && (
+            <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
+              <p className="text-sm text-red-800 dark:text-red-200">{paymentError}</p>
+            </div>
+          )}
+
+          {locationId ? (
+            <SquarePaymentForm
+              applicationId={paymentConfig.applicationId}
+              locationId={locationId}
+              testMode={paymentConfig.settings?.testMode === true}
+              amount={Number(invoice.totalAmount)}
+              onPaymentSuccess={handleSquarePaymentSuccess}
+              onError={handleSquarePaymentError}
+              isProcessing={isProcessing}
+            />
+          ) : (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              Square location ID is required. Please configure your Square integration in settings.
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isProcessing}
+              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // For other providers or fallback, show simple confirmation
+  return (
+    <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black opacity-30" onClick={onClose}></div>
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+          Process Payment
+        </h3>
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Process payment for invoice <strong>{invoice.invoiceNumber}</strong>
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            Amount: <strong>${Number(invoice.totalAmount).toFixed(2)}</strong>
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Payment will be processed using your configured payment provider.
+          </p>
+        </div>
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isProcessing}
+            className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm()}
+            disabled={isProcessing}
+            className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {isProcessing ? "Processing..." : "Process Payment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Refund Payment Modal Component
+function RefundPaymentModal({
+  invoice,
+  onClose,
+  onConfirm,
+  isProcessing,
+}: {
+  invoice: Invoice;
+  onClose: () => void;
+  onConfirm: (amount?: number, reason?: string) => void;
+  isProcessing: boolean;
+}) {
+  const [formData, setFormData] = useState({
+    amount: invoice.totalAmount.toString(),
+    reason: "",
+    fullRefund: true,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = formData.fullRefund ? undefined : Number(formData.amount);
+    onConfirm(amount, formData.reason || undefined);
+  };
+
+  return (
+    <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black opacity-30" onClick={onClose}></div>
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+          Refund Payment
+        </h3>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Refund payment for invoice <strong>{invoice.invoiceNumber}</strong>
+            </p>
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="fullRefund"
+                checked={formData.fullRefund}
+                onChange={(e) =>
+                  setFormData({ ...formData, fullRefund: e.target.checked })
+                }
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="fullRefund"
+                className="ml-2 block text-sm text-gray-900 dark:text-gray-100"
+              >
+                Full refund (${Number(invoice.totalAmount).toFixed(2)})
+              </label>
+            </div>
+            {!formData.fullRefund && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Refund Amount
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  max={invoice.totalAmount}
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, amount: e.target.value })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  required
+                />
+              </div>
+            )}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Reason (Optional)
+              </label>
+              <textarea
+                value={formData.reason}
+                onChange={(e) =>
+                  setFormData({ ...formData, reason: e.target.value })
+                }
+                rows={3}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="Reason for refund"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isProcessing}
+              className="inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className="inline-flex justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+            >
+              {isProcessing ? "Processing..." : "Process Refund"}
             </button>
           </div>
         </form>

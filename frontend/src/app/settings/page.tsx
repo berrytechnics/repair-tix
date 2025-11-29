@@ -4,6 +4,7 @@ import { useUser } from "@/lib/UserContext";
 import {
   ClipboardDocumentCheckIcon,
   Cog6ToothIcon,
+  CreditCardIcon,
   EnvelopeIcon,
   MapPinIcon,
   ShieldCheckIcon,
@@ -65,6 +66,14 @@ export default function SettingsPage() {
       href: "/settings/integrations/email",
       icon: EnvelopeIcon,
       permission: "settings.access",
+      adminOnly: true,
+    },
+    {
+      name: "Payment Integration",
+      description: "Configure payment processing for invoices",
+      href: "/settings/integrations/payment",
+      icon: CreditCardIcon,
+      permission: "payments.configure",
       adminOnly: true,
     },
   ];

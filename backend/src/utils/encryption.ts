@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import logger from '../config/logger.js';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128 bits
@@ -86,10 +87,14 @@ export function encryptCredentials(credentials: Record<string, string>): Record<
   const encrypted: Record<string, string> = {};
   
   for (const [key, value] of Object.entries(credentials)) {
+    // Skip undefined/null values
+    if (value === undefined || value === null) {
+      continue;
+    }
     // Preserve empty strings as-is (they don't contain sensitive data)
     if (value === '') {
       encrypted[key] = '';
-    } else if (value) {
+    } else if (value && value.trim() !== '') {
       encrypted[key] = encrypt(value);
     }
   }
@@ -104,15 +109,37 @@ export function decryptCredentials(encrypted: Record<string, string>): Record<st
   const decrypted: Record<string, string> = {};
   
   for (const [key, value] of Object.entries(encrypted)) {
+    // Skip undefined/null values
+    if (value === undefined || value === null) {
+      continue;
+    }
     // Empty strings are stored as-is (not encrypted)
     if (value === '') {
       decrypted[key] = '';
-    } else if (value) {
+    } else if (value && value.trim() !== '') {
       try {
-        decrypted[key] = decrypt(value);
+        // Check if it looks like encrypted data (has colons separating iv:tag:encrypted)
+        const parts = value.split(':');
+        if (parts.length === 3) {
+          // Looks encrypted, try to decrypt
+          decrypted[key] = decrypt(value);
+        } else {
+          // Doesn't look encrypted, might be plaintext (for testing or legacy data)
+          decrypted[key] = value;
+        }
       } catch (error) {
-        // Log error but don't fail - might be unencrypted legacy data
-        throw new Error(`Failed to decrypt credential: ${key}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // If decryption fails, check if it looks encrypted
+        const parts = value.split(':');
+        if (parts.length === 3) {
+          // It looked encrypted but failed - this is a real error
+          // Log it but continue with other credentials
+          logger?.warn?.(`Failed to decrypt credential ${key}, skipping: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Skip this credential rather than failing entirely
+          continue;
+        } else {
+          // Doesn't look encrypted, use as plaintext
+          decrypted[key] = value;
+        }
       }
     }
   }

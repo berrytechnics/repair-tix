@@ -13,6 +13,7 @@ import integrationRoutes from "./routes/integration.routes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import locationRoutes from "./routes/location.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 import purchaseOrderRoutes from "./routes/purchase-order.routes.js";
 import reportingRoutes from "./routes/reporting.routes.js";
 import ticketRoutes from "./routes/ticket.routes.js";
@@ -43,6 +44,7 @@ app.use("/api/reporting", reportingRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/locations", locationRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

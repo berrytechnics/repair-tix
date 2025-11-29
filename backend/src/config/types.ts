@@ -125,6 +125,7 @@ export interface InvoiceTable {
   tax_amount: number;
   discount_amount: number;
   total_amount: number;
+  refund_amount: number;
   notes: string | null;
   payment_method: string | null;
   payment_reference: string | null;

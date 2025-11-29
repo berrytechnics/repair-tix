@@ -2,6 +2,7 @@ import { NextFunction, Request, Response, RequestHandler } from "express";
 import { ForbiddenError } from "../config/errors.js";
 import { UserRole } from "../config/types.js";
 import { UserWithoutPassword } from "../services/user.service.js";
+import { getPermissionsForRole } from "../config/permissions.js";
 
 /**
  * Middleware factory that checks if user has one of the specified roles
@@ -50,6 +51,36 @@ export function requireManagerOrAdmin(): RequestHandler {
  */
 export function requireTechnicianOrAbove(): RequestHandler {
   return requireRole(["admin", "manager", "technician"]);
+}
+
+/**
+ * Middleware factory that checks if user has a specific permission
+ * Must be used after validateRequest and requireTenantContext middleware
+ */
+export function requirePermission(permission: string): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user as UserWithoutPassword | undefined;
+      const companyId = req.companyId;
+
+      if (!user || !companyId) {
+        return next(new ForbiddenError("Authentication and company context required"));
+      }
+
+      // Get permissions for user's role in their company
+      const permissions = await getPermissionsForRole(user.role, companyId);
+
+      if (!permissions.includes(permission)) {
+        return next(new ForbiddenError(
+          `Access denied. Required permission: ${permission}`
+        ));
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 

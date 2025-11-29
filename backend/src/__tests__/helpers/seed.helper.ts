@@ -329,6 +329,7 @@ export async function createTestInvoice(
       tax_amount: taxAmount,
       discount_amount: discountAmount,
       total_amount: totalAmount,
+      refund_amount: 0,
       notes: overrides?.notes || null,
       payment_method: overrides?.paymentMethod || null,
       payment_reference: overrides?.paymentReference || null,

@@ -105,13 +105,36 @@ describe('Encryption Utilities', () => {
       expect(decrypted.secret).toBe('');
     });
 
-    it('should throw error when decrypting invalid credentials', () => {
+    it('should skip invalid encrypted credentials and continue with valid ones', () => {
+      // Use a format that looks encrypted (has colons) but will fail to decrypt
+      // This simulates corrupted or invalid encrypted data
       const invalidEncrypted = {
-        apiKey: 'invalid-format',
-        secret: 'valid:format:here',
+        apiKey: 'invalid:encrypted:format', // Looks encrypted but will fail to decrypt
+        secret: 'valid:format:here', // This will also fail unless it's actually valid encrypted data
       };
 
-      expect(() => decryptCredentials(invalidEncrypted)).toThrow('Failed to decrypt credential');
+      // decryptCredentials now logs a warning and skips invalid credentials instead of throwing
+      // This is more resilient - allows partial decryption
+      const result = decryptCredentials(invalidEncrypted);
+      
+      // Invalid encrypted credentials should be skipped (not in result)
+      // Since both will fail, both should be skipped
+      expect(result.apiKey).toBeUndefined();
+      expect(result.secret).toBeUndefined();
+    });
+
+    it('should handle plaintext credentials (non-encrypted format)', () => {
+      // Credentials that don't look encrypted (no colons) are treated as plaintext
+      const plaintextCredentials = {
+        apiKey: 'plaintext-key',
+        secret: 'plaintext-secret',
+      };
+
+      const result = decryptCredentials(plaintextCredentials);
+      
+      // Plaintext credentials should be returned as-is
+      expect(result.apiKey).toBe('plaintext-key');
+      expect(result.secret).toBe('plaintext-secret');
     });
   });
 });

@@ -9,10 +9,15 @@ import sendGridAdapter from '../integrations/email/sendgrid.adapter.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   saveEmailIntegrationValidation,
+  savePaymentIntegrationValidation,
   integrationTypeValidation,
   testIntegrationValidation,
 } from '../validators/integration.validator.js';
-import { IntegrationType, EmailIntegrationConfig } from '../config/integrations.js';
+import { IntegrationType, EmailIntegrationConfig, PaymentIntegrationConfig, PaymentProvider } from '../config/integrations.js';
+import squareAdapter from '../integrations/payment/square.adapter.js';
+import stripeAdapter from '../integrations/payment/stripe.adapter.js';
+import paypalAdapter from '../integrations/payment/paypal.adapter.js';
+import { decryptCredentials } from '../utils/encryption.js';
 
 const router = express.Router();
 
@@ -61,12 +66,29 @@ router.get(
     }
 
     // Return config with masked credentials
+    // For Square payment integration, include applicationId and locationId (needed for SDK initialization, less sensitive than access token)
+    const responseData: Record<string, unknown> = {
+      ...integration,
+      credentials: maskCredentials(integration.credentials),
+    };
+    
+    if (type === 'payment' && integration.type === 'payment') {
+      const paymentConfig = integration as PaymentIntegrationConfig;
+      if (paymentConfig.provider === 'square') {
+        // Decrypt credentials to get applicationId and locationId for Square SDK initialization
+        const decryptedCredentials = decryptCredentials(integration.credentials);
+        if (decryptedCredentials.applicationId) {
+          responseData.applicationId = decryptedCredentials.applicationId;
+        }
+        if (decryptedCredentials.locationId) {
+          responseData.locationId = decryptedCredentials.locationId;
+        }
+      }
+    }
+    
     res.json({
       success: true,
-      data: {
-        ...integration,
-        credentials: maskCredentials(integration.credentials),
-      },
+      data: responseData,
     });
   })
 );
@@ -74,7 +96,11 @@ router.get(
 // POST /api/integrations/:type - Save/update integration config
 router.post(
   '/:type',
-  validate([...integrationTypeValidation, ...saveEmailIntegrationValidation]),
+  validate([
+    ...integrationTypeValidation,
+    ...saveEmailIntegrationValidation,
+    ...savePaymentIntegrationValidation,
+  ]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
     const { type } = req.params;
@@ -87,6 +113,77 @@ router.post(
         error: { message: 'API key is required for email integration' },
       });
       return;
+    }
+
+    if (type === 'payment') {
+      // Validate payment provider-specific credentials
+      if (provider === 'square' && (!credentials?.accessToken || !credentials?.applicationId || !credentials?.locationId)) {
+        res.status(400).json({
+          success: false,
+          error: { message: 'Access token, application ID, and location ID are required for Square' },
+        });
+        return;
+      }
+      if (provider === 'stripe' && !credentials?.apiKey) {
+        res.status(400).json({
+          success: false,
+          error: { message: 'API key is required for Stripe' },
+        });
+        return;
+      }
+      if (provider === 'paypal' && (!credentials?.clientId || !credentials?.clientSecret)) {
+        res.status(400).json({
+          success: false,
+          error: { message: 'Client ID and client secret are required for PayPal' },
+        });
+        return;
+      }
+
+      // For payment integrations, require a successful test connection before saving
+      // Check if skipTest flag is provided (for updates where credentials haven't changed)
+      const skipTest = req.body.skipTest === true;
+      
+      if (!skipTest) {
+        // Create a temporary config to test
+        const tempConfig: PaymentIntegrationConfig = {
+          type: 'payment',
+          provider: provider as PaymentProvider,
+          enabled: enabled ?? true,
+          credentials,
+          settings,
+        };
+
+        // Test connection based on provider
+        let testResult;
+        switch (provider) {
+          case 'square':
+            testResult = await squareAdapter.testConnection(tempConfig);
+            break;
+          case 'stripe':
+            testResult = await stripeAdapter.testConnection(tempConfig);
+            break;
+          case 'paypal':
+            testResult = await paypalAdapter.testConnection(tempConfig);
+            break;
+          default:
+            res.status(400).json({
+              success: false,
+              error: { message: `Payment provider ${provider} is not supported` },
+            });
+            return;
+        }
+
+        if (!testResult.success) {
+          res.status(400).json({
+            success: false,
+            error: { 
+              message: `Connection test failed. Please verify your credentials and try again.`,
+              details: testResult.error 
+            },
+          });
+          return;
+        }
+      }
     }
 
     const config = await credentialService.saveIntegration(companyId, type as IntegrationType, {
@@ -128,10 +225,29 @@ router.post(
       return;
     }
 
-    // Test connection based on type
+    // Test connection based on type and provider
     let testResult;
     if (type === 'email' && integration.provider === 'sendgrid') {
       testResult = await sendGridAdapter.testConnection(integration as EmailIntegrationConfig);
+    } else if (type === 'payment') {
+      const paymentConfig = integration as PaymentIntegrationConfig;
+      switch (paymentConfig.provider) {
+        case 'square':
+          testResult = await squareAdapter.testConnection(paymentConfig);
+          break;
+        case 'stripe':
+          testResult = await stripeAdapter.testConnection(paymentConfig);
+          break;
+        case 'paypal':
+          testResult = await paypalAdapter.testConnection(paymentConfig);
+          break;
+        default:
+          res.status(400).json({
+            success: false,
+            error: { message: `Payment provider ${paymentConfig.provider} is not supported` },
+          });
+          return;
+      }
     } else {
       res.status(400).json({
         success: false,

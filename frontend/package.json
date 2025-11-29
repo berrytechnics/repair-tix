@@ -19,6 +19,7 @@
   "dependencies": {
     "@heroicons/react": "^2.0.18",
     "@react-pdf/renderer": "^4.3.1",
+    "@square/web-sdk": "^2.1.0",
     "@types/node": "22.14.0",
     "@types/react": "^18.2.38",
     "@types/react-dom": "^18.2.15",

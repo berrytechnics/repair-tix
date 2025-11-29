@@ -27,6 +27,26 @@ export interface SaveEmailIntegrationData {
   };
 }
 
+export interface SavePaymentIntegrationData {
+  provider: string;
+  enabled?: boolean;
+  credentials: {
+    // Square
+    accessToken?: string;
+    applicationId?: string;
+    locationId?: string;
+    // Stripe
+    apiKey?: string;
+    // PayPal
+    clientId?: string;
+    clientSecret?: string;
+  };
+  settings?: {
+    testMode?: boolean;
+    webhookUrl?: string;
+  };
+}
+
 // Integration API functions
 export const getIntegration = async (
   type: IntegrationType

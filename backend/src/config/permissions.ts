@@ -61,6 +61,14 @@ export const PERMISSIONS = {
 
   // Reporting permissions
   REPORTING_READ: "reporting.read",
+
+  // Payment permissions
+  PAYMENTS_PROCESS: "payments.process",
+  PAYMENTS_REFUND: "payments.refund",
+  PAYMENTS_CONFIGURE: "payments.configure",
+
+  // Company settings permissions
+  COMPANY_SETTINGS_MANAGE: "company_settings.manage",
 } as const;
 
 // Type for permission strings
@@ -125,6 +133,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     // Reporting
     PERMISSIONS.REPORTING_READ,
+
+    // Payments
+    PERMISSIONS.PAYMENTS_PROCESS,
+    PERMISSIONS.PAYMENTS_REFUND,
+    PERMISSIONS.PAYMENTS_CONFIGURE,
+
+    // Company settings
+    PERMISSIONS.COMPANY_SETTINGS_MANAGE,
   ],
 
   manager: [
@@ -144,6 +160,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.INVOICES_UPDATE,
     PERMISSIONS.INVOICES_MANAGE_ITEMS,
     PERMISSIONS.INVOICES_MARK_PAID,
+
+    // Payments - process and refund
+    PERMISSIONS.PAYMENTS_PROCESS,
+    PERMISSIONS.PAYMENTS_REFUND,
 
     // Inventory - all permissions
     PERMISSIONS.INVENTORY_READ,

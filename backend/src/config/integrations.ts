@@ -6,6 +6,8 @@ export type IntegrationType = 'email' | 'payment' | 'sms';
 
 export type EmailProvider = 'sendgrid' | 'mailgun' | 'resend' | 'aws_ses' | 'brevo' | 'custom_smtp';
 
+export type PaymentProvider = 'square' | 'stripe' | 'paypal';
+
 /**
  * Base integration configuration structure
  */
@@ -31,6 +33,18 @@ export interface EmailIntegrationConfig extends IntegrationConfig {
     fromEmail: string;
     fromName?: string;
     replyTo?: string;
+  };
+}
+
+/**
+ * Payment integration configuration
+ */
+export interface PaymentIntegrationConfig extends IntegrationConfig {
+  type: 'payment';
+  provider: PaymentProvider;
+  settings?: {
+    testMode?: boolean;
+    webhookUrl?: string;
   };
 }
 
@@ -87,11 +101,38 @@ export const EMAIL_PROVIDERS: Record<EmailProvider, ProviderMetadata> = {
 };
 
 /**
+ * Payment provider metadata
+ */
+export const PAYMENT_PROVIDERS: Record<PaymentProvider, ProviderMetadata> = {
+  square: {
+    id: 'square',
+    displayName: 'Square',
+    description: 'Square payment processing (2.6% + $0.10 per transaction)',
+    documentationUrl: 'https://developer.squareup.com/docs/payments-overview',
+  },
+  stripe: {
+    id: 'stripe',
+    displayName: 'Stripe',
+    description: 'Stripe payment processing (2.9% + $0.30 per transaction)',
+    documentationUrl: 'https://stripe.com/docs/payments',
+  },
+  paypal: {
+    id: 'paypal',
+    displayName: 'PayPal',
+    description: 'PayPal payment processing (2.9% + fixed fee per transaction)',
+    documentationUrl: 'https://developer.paypal.com/docs/api/overview',
+  },
+};
+
+/**
  * Get provider metadata
  */
 export function getProviderMetadata(type: IntegrationType, provider: string): ProviderMetadata | undefined {
   if (type === 'email') {
     return EMAIL_PROVIDERS[provider as EmailProvider];
+  }
+  if (type === 'payment') {
+    return PAYMENT_PROVIDERS[provider as PaymentProvider];
   }
   return undefined;
 }
@@ -102,6 +143,9 @@ export function getProviderMetadata(type: IntegrationType, provider: string): Pr
 export function getAvailableProviders(type: IntegrationType): ProviderMetadata[] {
   if (type === 'email') {
     return Object.values(EMAIL_PROVIDERS);
+  }
+  if (type === 'payment') {
+    return Object.values(PAYMENT_PROVIDERS);
   }
   return [];
 }

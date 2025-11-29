@@ -59,6 +59,7 @@ export type Invoice = Omit<
   | "tax_amount"
   | "discount_amount"
   | "total_amount"
+  | "refund_amount"
   | "payment_method"
   | "payment_reference"
   | "created_at"
@@ -77,6 +78,7 @@ export type Invoice = Omit<
   taxAmount: number;
   discountAmount: number;
   totalAmount: number;
+  refundAmount: number;
   paymentMethod: string | null;
   paymentReference: string | null;
   createdAt: Date;
@@ -180,6 +182,7 @@ function toInvoice(invoice: {
   tax_amount: number;
   discount_amount: number;
   total_amount: number;
+  refund_amount?: number;
   notes: string | null;
   payment_method: string | null;
   payment_reference: string | null;
@@ -202,6 +205,7 @@ function toInvoice(invoice: {
     taxAmount: invoice.tax_amount,
     discountAmount: invoice.discount_amount,
     totalAmount: invoice.total_amount,
+    refundAmount: (invoice.refund_amount as number) || 0,
     notes: invoice.notes,
     paymentMethod: invoice.payment_method,
     paymentReference: invoice.payment_reference,
@@ -340,6 +344,7 @@ export class InvoiceService {
         tax_amount: taxAmount,
         discount_amount: discountAmount,
         total_amount: totalAmount,
+        refund_amount: 0,
         notes: data.notes || null,
         payment_method: data.paymentMethod || null,
         payment_reference: data.paymentReference || null,
@@ -760,6 +765,81 @@ export class InvoiceService {
       .execute();
 
     return items.map(toInvoiceItem);
+  }
+
+  /**
+   * Record a refund on an invoice
+   * Finds invoice by payment_reference (transactionId) and updates refund_amount
+   */
+  async recordRefund(
+    transactionId: string,
+    refundAmount: number,
+    companyId: string,
+    refundId?: string
+  ): Promise<(Invoice & { invoiceItems?: InvoiceItem[] }) | null> {
+    // Find invoice by payment_reference
+    const invoice = await db
+      .selectFrom("invoices")
+      .selectAll()
+      .where("payment_reference", "=", transactionId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!invoice) {
+      throw new NotFoundError(`Invoice not found for transaction ${transactionId}`);
+    }
+
+    // Calculate new refund amount (add to existing)
+    const currentRefundAmount = Number(invoice.refund_amount || 0);
+    const newRefundAmount = currentRefundAmount + refundAmount;
+
+    // Determine new status based on refund amount
+    let newStatus = invoice.status;
+    const totalAmount = Number(invoice.total_amount);
+    
+    if (newRefundAmount >= totalAmount) {
+      // Fully refunded - change status to cancelled if it was paid
+      // Note: "refunded" is not a valid status, so we use "cancelled"
+      if (invoice.status === "paid") {
+        newStatus = "cancelled" as InvoiceStatus;
+      }
+    }
+    // For partial refunds, keep the status as "paid" - the refund_amount field tracks it
+
+    // Update invoice with refund amount
+    const updated = await db
+      .updateTable("invoices")
+      .set({
+        refund_amount: newRefundAmount,
+        status: newStatus,
+        notes: refundId
+          ? `${invoice.notes || ""}\nRefund recorded: ${refundId} (${refundAmount.toFixed(2)})`.trim()
+          : invoice.notes,
+        updated_at: sql`now()`,
+      })
+      .where("id", "=", invoice.id)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .returningAll()
+      .executeTakeFirst();
+
+    if (!updated) {
+      return null;
+    }
+
+    // Fetch invoice items
+    const items = await db
+      .selectFrom("invoice_items")
+      .selectAll()
+      .where("invoice_id", "=", invoice.id)
+      .execute();
+
+    const invoiceData = toInvoice(updated);
+    return {
+      ...invoiceData,
+      invoiceItems: items.map(toInvoiceItem),
+    };
   }
 }
 
