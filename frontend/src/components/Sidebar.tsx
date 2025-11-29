@@ -147,64 +147,9 @@ export default function Sidebar() {
     return hasPermission(item.permission);
   });
 
-  // If no user is logged in, just display login/register links
+  // Hide sidebar completely when user is not logged in
   if (!isLoading && !user) {
-    return (
-      <>
-        {/* Mobile hamburger menu button */}
-        <div className="lg:hidden fixed top-4 left-4 z-50">
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none bg-white dark:bg-gray-900 shadow"
-          >
-            <Bars3Icon className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Mobile overlay */}
-        {isOpen && (
-          <div
-            className="fixed inset-0 bg-gray-800/50 z-40 lg:hidden"
-            onClick={() => setIsOpen(false)}
-          />
-        )}
-
-        {/* Minimal sidebar with auth links */}
-        <aside
-          className={cn(
-            "fixed top-0 left-0 z-40 h-screen w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-transform duration-300 ease-in-out",
-            isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          )}
-        >
-          <div className="flex flex-col h-full py-6 px-3">
-            {/* Logo */}
-            <div className="px-3 mb-6">
-              <h1 className="font-bold text-xl dark:text-gray-100">Repair Manager</h1>
-            </div>
-
-            <div className="flex flex-col flex-1 items-center justify-center space-y-4 px-3">
-              <p className="text-gray-600 text-center">
-                Please log in to access the repair management system
-              </p>
-
-              <Link
-                href="/login"
-                className="w-full px-4 py-2 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Login
-              </Link>
-
-              <Link
-                href="/register"
-                className="w-full px-4 py-2 text-center border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Register
-              </Link>
-            </div>
-          </div>
-        </aside>
-      </>
-    );
+    return null;
   }
 
   // Show loading state during initial load
