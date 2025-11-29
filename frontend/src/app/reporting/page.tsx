@@ -6,6 +6,11 @@ import {
   getTechnicianPerformance,
   getTicketPriorityDistribution,
   getTicketStatusDistribution,
+  type StatusDistribution,
+  type PriorityDistribution,
+  type RevenueByLocation,
+  type TechnicianPerformance,
+  type InvoiceStatusBreakdown,
 } from "@/lib/api/reporting.api";
 import { useUser } from "@/lib/UserContext";
 import TicketStatusChart from "@/components/Reporting/TicketStatusChart";
@@ -28,11 +33,11 @@ export default function ReportingPage() {
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   
   // Data states
-  const [ticketStatusData, setTicketStatusData] = useState<any[]>([]);
-  const [ticketPriorityData, setTicketPriorityData] = useState<any[]>([]);
-  const [revenueByLocationData, setRevenueByLocationData] = useState<any[]>([]);
-  const [technicianPerformanceData, setTechnicianPerformanceData] = useState<any[]>([]);
-  const [invoiceStatusData, setInvoiceStatusData] = useState<any[]>([]);
+  const [ticketStatusData, setTicketStatusData] = useState<StatusDistribution[]>([]);
+  const [ticketPriorityData, setTicketPriorityData] = useState<PriorityDistribution[]>([]);
+  const [revenueByLocationData, setRevenueByLocationData] = useState<RevenueByLocation[]>([]);
+  const [technicianPerformanceData, setTechnicianPerformanceData] = useState<TechnicianPerformance[]>([]);
+  const [invoiceStatusData, setInvoiceStatusData] = useState<InvoiceStatusBreakdown[]>([]);
   
   // Loading states
   const [loadingTicketStatus, setLoadingTicketStatus] = useState(false);
