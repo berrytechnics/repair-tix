@@ -3,7 +3,7 @@ import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { UserRole, TicketStatus, TicketPriority, InvoiceStatus } from "../../config/types.js";
+import { UserRole, TicketStatus, TicketPriority, InvoiceStatus, InventoryTransferStatus } from "../../config/types.js";
 import { db } from "../../config/connection.js";
 
 /**
@@ -422,5 +422,136 @@ export async function createTestInvitation(
     .execute();
 
   return { id: invitationId, token };
+}
+
+/**
+ * Create a test asset in the database
+ */
+export async function createTestAsset(
+  companyId: string,
+  customerId: string,
+  overrides?: {
+    deviceType?: string;
+    deviceBrand?: string | null;
+    deviceModel?: string | null;
+    serialNumber?: string | null;
+    notes?: string | null;
+  }
+): Promise<string> {
+  const assetId = uuidv4();
+
+  await db
+    .insertInto("assets")
+    .values({
+      id: assetId,
+      company_id: companyId,
+      customer_id: customerId,
+      device_type: overrides?.deviceType || "Smartphone",
+      device_brand: overrides?.deviceBrand || null,
+      device_model: overrides?.deviceModel || null,
+      serial_number: overrides?.serialNumber || null,
+      notes: overrides?.notes || null,
+      created_at: sql`now()`,
+      updated_at: sql`now()`,
+      deleted_at: null,
+    })
+    .execute();
+
+  return assetId;
+}
+
+/**
+ * Create a test inventory item in the database
+ */
+export async function createTestInventoryItem(
+  companyId: string,
+  locationId: string,
+  overrides?: {
+    sku?: string;
+    name?: string;
+    description?: string | null;
+    category?: string;
+    subcategory?: string | null;
+    brand?: string | null;
+    model?: string | null;
+    compatibleWith?: string[] | null;
+    costPrice?: number;
+    sellingPrice?: number;
+    quantity?: number;
+    reorderLevel?: number;
+    location?: string | null;
+    supplier?: string | null;
+    supplierPartNumber?: string | null;
+    isActive?: boolean;
+  }
+): Promise<string> {
+  const itemId = uuidv4();
+  const sku = overrides?.sku || `TEST-SKU-${itemId.slice(0, 8)}`;
+
+  await db
+    .insertInto("inventory_items")
+    .values({
+      id: itemId,
+      company_id: companyId,
+      location_id: locationId,
+      sku: sku,
+      name: overrides?.name || "Test Inventory Item",
+      description: overrides?.description || null,
+      category: overrides?.category || "Parts",
+      subcategory: overrides?.subcategory || null,
+      brand: overrides?.brand || null,
+      model: overrides?.model || null,
+      compatible_with: overrides?.compatibleWith || null,
+      cost_price: overrides?.costPrice ?? 10.0,
+      selling_price: overrides?.sellingPrice ?? 20.0,
+      quantity: overrides?.quantity ?? 100,
+      reorder_level: overrides?.reorderLevel ?? 10,
+      location: overrides?.location || null,
+      supplier: overrides?.supplier || null,
+      supplier_part_number: overrides?.supplierPartNumber || null,
+      is_active: overrides?.isActive !== undefined ? overrides.isActive : true,
+      created_at: sql`now()`,
+      updated_at: sql`now()`,
+      deleted_at: null,
+    })
+    .execute();
+
+  return itemId;
+}
+
+/**
+ * Create a test inventory transfer in the database
+ */
+export async function createTestInventoryTransfer(
+  companyId: string,
+  fromLocationId: string,
+  toLocationId: string,
+  inventoryItemId: string,
+  userId: string,
+  overrides?: {
+    quantity?: number;
+    status?: InventoryTransferStatus;
+    notes?: string | null;
+  }
+): Promise<string> {
+  const transferId = uuidv4();
+
+  await db
+    .insertInto("inventory_transfers")
+    .values({
+      id: transferId,
+      from_location_id: fromLocationId,
+      to_location_id: toLocationId,
+      inventory_item_id: inventoryItemId,
+      quantity: overrides?.quantity ?? 10,
+      transferred_by: userId,
+      status: overrides?.status || "pending",
+      notes: overrides?.notes || null,
+      created_at: sql`now()`,
+      updated_at: sql`now()`,
+    })
+    .execute();
+
+  return transferId;
 }
 

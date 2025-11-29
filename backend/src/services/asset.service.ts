@@ -2,6 +2,7 @@
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection.js";
+import { BadRequestError } from "../config/errors.js";
 import { AssetTable } from "../config/types.js";
 
 // Input DTOs
@@ -118,7 +119,7 @@ export class AssetService {
       .executeTakeFirst();
 
     if (!customer) {
-      throw new Error("Customer not found or does not belong to company");
+      throw new BadRequestError("Customer not found or does not belong to company");
     }
 
     const asset = await db
