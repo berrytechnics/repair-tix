@@ -1,0 +1,16 @@
+# Config files that use CommonJS require()
+jest.config.js
+start-server.js
+next.config.js
+
+# Build outputs
+.next/
+out/
+dist/
+
+# Dependencies
+node_modules/
+
+# Test outputs
+coverage/
+
