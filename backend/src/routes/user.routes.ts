@@ -75,6 +75,7 @@ router.post(
     
     let company;
     let userRole = role || "technician";
+    let defaultLocationId: string | null = null;
     
     // Path 1: Invitation-based registration (subsequent users)
     if (invitationToken) {
@@ -118,6 +119,13 @@ router.post(
         status: "active",
       });
       
+      // Create default location for the new company
+      const defaultLocation = await locationService.create(company.id, {
+        name: "Default Location",
+        isActive: true,
+      });
+      defaultLocationId = defaultLocation.id;
+      
       // First user automatically becomes admin
       userRole = "admin";
     } else {
@@ -138,8 +146,23 @@ router.post(
       throw new BadRequestError("Registration failed");
     }
     
-    const token = generateNewJWTToken(user);
-    const formattedUser = formatUserForResponse(user);
+    // For new company registrations, assign user to default location and set as current
+    if (defaultLocationId) {
+      // Assign user to location
+      await userService.assignLocation(user.id, defaultLocationId, company.id);
+      
+      // Set as current location
+      await userService.setCurrentLocation(user.id, defaultLocationId, company.id);
+    }
+    
+    // Fetch updated user with location set
+    const updatedUser = await userService.findById(user.id);
+    if (!updatedUser) {
+      throw new BadRequestError("Failed to fetch user after registration");
+    }
+    
+    const token = generateNewJWTToken(updatedUser);
+    const formattedUser = formatUserForResponse(updatedUser);
     
     res.status(201).json({
       success: true,
