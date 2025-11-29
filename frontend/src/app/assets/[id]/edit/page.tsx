@@ -35,3 +35,4 @@ export default function EditAssetPage({
   return <AssetForm assetId={params.id} />;
 }
 
+

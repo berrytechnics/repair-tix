@@ -67,3 +67,4 @@ export const updateAssetValidation = [
     .withMessage("Notes must not exceed 10000 characters"),
 ];
 
+

@@ -87,3 +87,4 @@ echo "All migrations completed successfully"
 # Unset password
 unset PGPASSWORD
 
+

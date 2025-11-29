@@ -33,3 +33,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_company_customer_serial_unique
 ON assets(company_id, customer_id, serial_number) 
 WHERE serial_number IS NOT NULL;
 
+

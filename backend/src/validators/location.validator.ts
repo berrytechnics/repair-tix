@@ -69,3 +69,4 @@ export const updateLocationValidation = [
     .withMessage("isActive must be a boolean"),
 ];
 
+
