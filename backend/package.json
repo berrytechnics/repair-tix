@@ -9,7 +9,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "lint": "eslint src --ext .ts",
-    "test": "jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "migrate:prod": "node dist/scripts/run-migrations.js"
   },
   "dependencies": {

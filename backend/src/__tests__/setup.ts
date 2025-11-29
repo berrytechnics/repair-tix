@@ -34,3 +34,6 @@ if (!process.env.DB_NAME) {
 //   error: jest.fn(),
 // };
 
+// Export empty object to make this a proper ES module
+export {};
+

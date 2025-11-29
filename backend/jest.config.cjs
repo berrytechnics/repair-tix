@@ -1,20 +1,30 @@
 module.exports = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
       tsconfig: {
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
         isolatedModules: true,
       },
     }],
   },
+  // Add .js to moduleFileExtensions so Jest can resolve them
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$))',
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/__tests__/**',
   ],
+  resolver: '<rootDir>/jest-resolver.cjs',
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
   },
@@ -25,5 +35,7 @@ module.exports = {
   passWithNoTests: true,
   // Force Jest to exit after tests complete to prevent hanging on open handles
   forceExit: true,
+  // Inject Jest globals for ES modules
+  injectGlobals: true,
 };
 
