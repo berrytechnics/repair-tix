@@ -15,6 +15,7 @@ import {
     DocumentTextIcon,
     MoonIcon,
     ShoppingBagIcon,
+    Squares2X2Icon,
     SunIcon,
     TicketIcon,
     UsersIcon,
@@ -83,7 +84,7 @@ export default function Sidebar() {
     {
       href: "/dashboard",
       label: "Dashboard",
-      icon: <ChartBarIcon className="w-6 h-6" />,
+      icon: <Squares2X2Icon className="w-6 h-6" />,
       permission: "settings.access", // All authenticated users have this
     },
     {
