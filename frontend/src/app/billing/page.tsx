@@ -11,7 +11,6 @@ import {
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import SquarePaymentForm from "@/components/SquarePaymentForm";
 import dynamic from "next/dynamic";
 
 const SquarePaymentFormDynamic = dynamic(

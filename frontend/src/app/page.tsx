@@ -235,7 +235,7 @@ export default function Home() {
                     Scale with Your Business
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Whether you're a single-location shop or a multi-location operation, RepairTix grows with you. Add locations, users, and features as needed.
+                    Whether you&apos;re a single-location shop or a multi-location operation, RepairTix grows with you. Add locations, users, and features as needed.
                   </p>
                 </div>
               </div>
