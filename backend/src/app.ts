@@ -33,13 +33,64 @@ const allowedOrigins = process.env.NODE_ENV === "production"
 
 // Log allowed origins in production for debugging
 if (process.env.NODE_ENV === "production") {
+  console.log("[CORS DEBUG] NODE_ENV:", process.env.NODE_ENV);
+  console.log("[CORS DEBUG] ALLOWED_ORIGINS env var:", process.env.ALLOWED_ORIGINS);
+  console.log("[CORS DEBUG] Parsed allowed origins:", allowedOrigins);
+  console.log("[CORS DEBUG] Allowed origins type:", typeof allowedOrigins);
+  console.log("[CORS DEBUG] Allowed origins is array:", Array.isArray(allowedOrigins));
   logger.info("CORS allowed origins:", allowedOrigins);
 }
 
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    console.log("[CORS DEBUG] Incoming request origin:", origin);
+    console.log("[CORS DEBUG] Request origin type:", typeof origin);
+    console.log("[CORS DEBUG] NODE_ENV:", process.env.NODE_ENV);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log("[CORS DEBUG] No origin header, allowing request");
+      return callback(null, true);
+    }
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[CORS DEBUG] Development mode, allowing all origins");
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    console.log("[CORS DEBUG] Production mode, checking against allowed origins");
+    console.log("[CORS DEBUG] Allowed origins array:", allowedOrigins);
+    console.log("[CORS DEBUG] Allowed origins length:", Array.isArray(allowedOrigins) ? allowedOrigins.length : "N/A");
+    
+    if (Array.isArray(allowedOrigins) && allowedOrigins.length > 0) {
+      console.log("[CORS DEBUG] Checking if origin is in allowed list");
+      console.log("[CORS DEBUG] Request origin:", origin);
+      console.log("[CORS DEBUG] Allowed origins:", allowedOrigins);
+      console.log("[CORS DEBUG] Origin match:", allowedOrigins.includes(origin));
+      
+      if (allowedOrigins.includes(origin)) {
+        console.log("[CORS DEBUG] ✓ Origin allowed:", origin);
+        return callback(null, true);
+      } else {
+        console.log("[CORS DEBUG] ✗ Origin BLOCKED:", origin);
+        console.log("[CORS DEBUG] Allowed origins were:", allowedOrigins.join(", "));
+        logger.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(", ")}`);
+        return callback(new Error("Not allowed by CORS"), false);
+      }
+    }
+    
+    // If no allowed origins configured in production, deny all
+    console.log("[CORS DEBUG] ✗ ERROR: No allowed origins configured!");
+    console.log("[CORS DEBUG] ALLOWED_ORIGINS env var:", process.env.ALLOWED_ORIGINS);
+    logger.error("CORS: No allowed origins configured in production!");
+    return callback(new Error("CORS not configured"), false);
+  },
   credentials: true,
   optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 
 // Middleware
