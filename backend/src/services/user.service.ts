@@ -565,21 +565,16 @@ export class UserService {
 
     // If setting a location, verify user has access (admin or assigned)
     if (locationId) {
-      // Admins can set any company location
-      if (user.role === "admin") {
-        const location = await db
-          .selectFrom("locations")
-          .select("id")
-          .where("id", "=", locationId)
-          .where("company_id", "=", companyId)
-          .where("deleted_at", "is", null)
-          .executeTakeFirst();
+      // Use locationService to check if location is accessible (respects billing restrictions)
+      const locationService = (await import("./location.service.js")).default;
+      const location = await locationService.findById(locationId, companyId);
 
-        if (!location) {
-          return false;
-        }
-      } else {
-        // Other users must be assigned to the location
+      if (!location) {
+        return false;
+      }
+
+      // For non-admin users, verify they are assigned to this location
+      if (user.role !== "admin") {
         const assignment = await db
           .selectFrom("user_locations")
           .select("user_id")

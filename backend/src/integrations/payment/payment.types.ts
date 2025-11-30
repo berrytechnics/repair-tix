@@ -75,3 +75,52 @@ export interface CreateTerminalCheckoutData {
   metadata?: Record<string, string>;
 }
 
+/**
+ * Subscription-related types
+ */
+export interface CreateCustomerData {
+  email: string;
+  givenName?: string;
+  familyName?: string;
+  companyName?: string;
+  phoneNumber?: string;
+}
+
+export interface CreateCustomerResult {
+  customerId: string;
+  email: string;
+}
+
+export interface CreateSubscriptionData {
+  customerId: string;
+  cardId: string; // Square card ID from saved card
+  planId: string; // Square subscription plan ID
+  locationId: string; // Square location ID
+  idempotencyKey: string;
+  startDate?: string; // ISO date string
+}
+
+export interface CreateSubscriptionResult {
+  subscriptionId: string;
+  status: string;
+  planId: string;
+  customerId: string;
+}
+
+export interface UpdateSubscriptionData {
+  subscriptionId: string;
+  planId?: string;
+  cardId?: string;
+}
+
+export interface SubscriptionStatusResult {
+  subscriptionId: string;
+  status: string;
+  planId: string;
+  customerId: string;
+  currentPhase?: {
+    startDate: string;
+    endDate?: string;
+  };
+}
+

@@ -5,6 +5,7 @@ import {
     UpdateLocationData,
     createLocation,
     getLocationById,
+    getLocations,
     updateLocation,
 } from "@/lib/api/location.api";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,8 @@ import React, { useEffect, useState } from "react";
 interface LocationFormProps {
   locationId?: string; // If provided, form will operate in update mode
 }
+
+const BILLING_AMOUNT_PER_LOCATION = 50; // $50 per location per month
 
 export default function LocationForm({ locationId }: LocationFormProps) {
   const router = useRouter();
@@ -35,6 +38,27 @@ export default function LocationForm({ locationId }: LocationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [showCostConfirm, setShowCostConfirm] = useState(false);
+  const [currentLocationCount, setCurrentLocationCount] = useState(0);
+
+  // Fetch location count if creating new location
+  useEffect(() => {
+    if (!isUpdateMode) {
+      const fetchLocationCount = async () => {
+        try {
+          const response = await getLocations();
+          if (response.data) {
+            setCurrentLocationCount(response.data.length);
+          }
+        } catch (err) {
+          console.error("Error fetching locations:", err);
+          // Don't show error, just assume 0 if fetch fails
+        }
+      };
+
+      fetchLocationCount();
+    }
+  }, [isUpdateMode]);
 
   // Fetch location data if in update mode
   useEffect(() => {
@@ -122,7 +146,20 @@ export default function LocationForm({ locationId }: LocationFormProps) {
       return;
     }
 
+    // If creating a new location and not the first one, show cost confirmation
+    if (!isUpdateMode && currentLocationCount > 0) {
+      setShowCostConfirm(true);
+      return;
+    }
+
+    // Proceed with submission
+    await submitLocation();
+  };
+
+  const submitLocation = async () => {
     setIsSubmitting(true);
+    setShowCostConfirm(false);
+    
     try {
       // Create clean location data, trimming all string fields and removing undefined/empty values
       const cleanFormData: CreateLocationData | UpdateLocationData = {};
@@ -437,6 +474,52 @@ export default function LocationForm({ locationId }: LocationFormProps) {
             : "Create Location"}
         </button>
       </div>
+
+      {/* Cost Confirmation Modal */}
+      {showCostConfirm && (
+        <div className="fixed inset-0 overflow-y-auto z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black opacity-30" onClick={() => setShowCostConfirm(false)}></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl mx-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+              Additional Monthly Cost
+            </h3>
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Adding this location will increase your monthly subscription by:
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4 mb-3">
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  ${BILLING_AMOUNT_PER_LOCATION.toFixed(2)}/month
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  per location
+                </p>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Your subscription will be automatically updated to reflect this change. The first location is always free.
+              </p>
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowCostConfirm(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitLocation}
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? "Creating..." : "Continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

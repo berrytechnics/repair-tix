@@ -17,6 +17,7 @@ import locationRoutes from "./routes/location.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import purchaseOrderRoutes from "./routes/purchase-order.routes.js";
 import reportingRoutes from "./routes/reporting.routes.js";
+import subscriptionRoutes from "./routes/subscription.routes.js";
 import ticketRoutes from "./routes/ticket.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
@@ -34,7 +35,23 @@ const corsOptions = {
 };
 
 // Middleware
-app.use(helmet());
+// Configure helmet with CSP that allows localhost in development
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: process.env.NODE_ENV === "production"
+          ? ["'self'"]
+          : ["'self'", "http://localhost:*", "ws://localhost:*", "http://127.0.0.1:*"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for Next.js in dev
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "data:"],
+      },
+    },
+  })
+);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
@@ -58,6 +75,7 @@ app.use("/api/invitations", invitationRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 // Health check endpoint
 app.get("/health", async (req: Request, res: Response) => {

@@ -11,6 +11,12 @@ import {
   TestConnectionResult,
   CreateTerminalCheckoutData,
   CreateTerminalCheckoutResult,
+  CreateCustomerData,
+  CreateCustomerResult,
+  CreateSubscriptionData,
+  CreateSubscriptionResult,
+  UpdateSubscriptionData,
+  SubscriptionStatusResult,
 } from './payment.types.js';
 
 // Type definitions for Square API responses
@@ -556,6 +562,323 @@ export class SquareAdapter {
       logger.error('Square getTerminalCheckoutStatus error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error getting terminal checkout status';
       throw new Error(`Square terminal checkout status failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Create a Square customer
+   */
+  async createCustomer(
+    config: PaymentIntegrationConfig,
+    customerData: CreateCustomerData
+  ): Promise<CreateCustomerResult> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken) {
+        throw new Error('Square access token is required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      const response = await (client.customers as any).createCustomer({
+        givenName: customerData.givenName,
+        familyName: customerData.familyName,
+        companyName: customerData.companyName,
+        emailAddress: customerData.email,
+        phoneNumber: customerData.phoneNumber,
+      });
+
+      const customer = (response as unknown as { body?: { customer?: { id?: string; emailAddress?: string } } }).body?.customer;
+
+      if (!customer || !customer.id) {
+        throw new Error('Failed to create customer: No customer returned');
+      }
+
+      return {
+        customerId: customer.id,
+        email: customer.emailAddress || customerData.email,
+      };
+    } catch (error) {
+      logger.error('Square createCustomer error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error creating customer';
+      throw new Error(`Square customer creation failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Create a Square subscription
+   */
+  async createSubscription(
+    config: PaymentIntegrationConfig,
+    subscriptionData: CreateSubscriptionData
+  ): Promise<CreateSubscriptionResult> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken) {
+        throw new Error('Square access token is required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      const response = await (client.subscriptions as any).createSubscription({
+        idempotencyKey: subscriptionData.idempotencyKey,
+        locationId: subscriptionData.locationId,
+        planId: subscriptionData.planId,
+        customerId: subscriptionData.customerId,
+        cardId: subscriptionData.cardId,
+        startDate: subscriptionData.startDate,
+      });
+
+      const subscription = (response as unknown as { 
+        body?: { 
+          subscription?: { 
+            id?: string; 
+            status?: string; 
+            planId?: string; 
+            customerId?: string;
+          } 
+        } 
+      }).body?.subscription;
+
+      if (!subscription || !subscription.id) {
+        throw new Error('Failed to create subscription: No subscription returned');
+      }
+
+      return {
+        subscriptionId: subscription.id,
+        status: subscription.status || 'PENDING',
+        planId: subscription.planId || subscriptionData.planId,
+        customerId: subscription.customerId || subscriptionData.customerId,
+      };
+    } catch (error) {
+      logger.error('Square createSubscription error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error creating subscription';
+      throw new Error(`Square subscription creation failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Update a Square subscription
+   */
+  async updateSubscription(
+    config: PaymentIntegrationConfig,
+    subscriptionData: UpdateSubscriptionData
+  ): Promise<CreateSubscriptionResult> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken) {
+        throw new Error('Square access token is required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      const updateData: Record<string, unknown> = {};
+      if (subscriptionData.planId) {
+        updateData.planId = subscriptionData.planId;
+      }
+      if (subscriptionData.cardId) {
+        updateData.cardId = subscriptionData.cardId;
+      }
+
+      const response = await (client.subscriptions as any).updateSubscription({
+        subscriptionId: subscriptionData.subscriptionId,
+        ...updateData,
+      });
+
+      const subscription = (response as unknown as { 
+        body?: { 
+          subscription?: { 
+            id?: string; 
+            status?: string; 
+            planId?: string; 
+            customerId?: string;
+          } 
+        } 
+      }).body?.subscription;
+
+      if (!subscription || !subscription.id) {
+        throw new Error('Failed to update subscription: No subscription returned');
+      }
+
+      return {
+        subscriptionId: subscription.id,
+        status: subscription.status || 'ACTIVE',
+        planId: subscription.planId || '',
+        customerId: subscription.customerId || '',
+      };
+    } catch (error) {
+      logger.error('Square updateSubscription error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error updating subscription';
+      throw new Error(`Square subscription update failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Cancel a Square subscription
+   */
+  async cancelSubscription(
+    config: PaymentIntegrationConfig,
+    subscriptionId: string
+  ): Promise<void> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken) {
+        throw new Error('Square access token is required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      await (client.subscriptions as any).cancelSubscription({
+        subscriptionId,
+      });
+    } catch (error) {
+      logger.error('Square cancelSubscription error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error canceling subscription';
+      throw new Error(`Square subscription cancellation failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Get Square subscription status
+   */
+  async getSubscriptionStatus(
+    config: PaymentIntegrationConfig,
+    subscriptionId: string
+  ): Promise<SubscriptionStatusResult> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken) {
+        throw new Error('Square access token is required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      const response = await (client.subscriptions as any).retrieveSubscription({
+        subscriptionId,
+      });
+
+      const subscription = (response as unknown as { 
+        body?: { 
+          subscription?: { 
+            id?: string; 
+            status?: string; 
+            planId?: string; 
+            customerId?: string;
+            phases?: Array<{
+              startDate?: string;
+              endDate?: string;
+            }>;
+          } 
+        } 
+      }).body?.subscription;
+
+      if (!subscription || !subscription.id) {
+        throw new Error('Subscription not found');
+      }
+
+      return {
+        subscriptionId: subscription.id,
+        status: subscription.status || 'UNKNOWN',
+        planId: subscription.planId || '',
+        customerId: subscription.customerId || '',
+        currentPhase: subscription.phases && subscription.phases.length > 0 ? {
+          startDate: subscription.phases[0].startDate || '',
+          endDate: subscription.phases[0].endDate,
+        } : undefined,
+      };
+    } catch (error) {
+      logger.error('Square getSubscriptionStatus error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error getting subscription status';
+      throw new Error(`Square subscription status failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Save a card for a customer (for autopay)
+   */
+  async saveCardForCustomer(
+    config: PaymentIntegrationConfig,
+    customerId: string,
+    cardToken: string // Card nonce from Square Web Payments SDK
+  ): Promise<{ cardId: string }> {
+    try {
+      const decryptedCredentials = decryptCredentials(config.credentials);
+      const accessToken = decryptedCredentials.accessToken;
+      const locationId = decryptedCredentials.locationId;
+      const testMode = config.settings?.testMode as boolean | undefined;
+
+      if (!accessToken || !locationId) {
+        throw new Error('Square credentials incomplete: accessToken and locationId are required');
+      }
+
+      const environment = testMode ? SquareEnvironment.Sandbox : SquareEnvironment.Production;
+      const client = new SquareClient({
+        token: accessToken,
+        environment: environment,
+      });
+
+      // Create a card from the token
+      const response = await (client.cards as any).createCard({
+        sourceId: cardToken,
+        card: {
+          customerId,
+        },
+      });
+
+      const card = (response as unknown as { 
+        body?: { 
+          card?: { 
+            id?: string;
+          } 
+        } 
+      }).body?.card;
+
+      if (!card || !card.id) {
+        throw new Error('Failed to save card: No card returned');
+      }
+
+      return {
+        cardId: card.id,
+      };
+    } catch (error) {
+      logger.error('Square saveCardForCustomer error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error saving card';
+      throw new Error(`Square card save failed: ${errorMessage}`);
     }
   }
 }

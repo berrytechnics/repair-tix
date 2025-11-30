@@ -27,6 +27,8 @@ export interface Database {
   purchase_orders: PurchaseOrderTable;
   purchase_order_items: PurchaseOrderItemTable;
   role_permissions: RolePermissionTable;
+  subscriptions: SubscriptionTable;
+  subscription_payments: SubscriptionPaymentTable;
   tickets: TicketTable;
   user_locations: UserLocationTable;
   user_roles: UserRoleTable;
@@ -262,6 +264,7 @@ export interface LocationTable {
   tax_enabled: boolean;
   tax_inclusive: boolean;
   is_active: boolean;
+  is_free: boolean;
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: SoftDelete;
@@ -344,6 +347,45 @@ export interface DiagnosticChecklistResponseTable {
   template_id: UUID;
   item_id: UUID;
   response_value: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export type SubscriptionStatus =
+  | "pending"
+  | "active"
+  | "canceled"
+  | "past_due"
+  | "deactivated";
+
+export interface SubscriptionTable {
+  id: UUID;
+  company_id: UUID;
+  square_subscription_id: string | null;
+  status: SubscriptionStatus;
+  monthly_amount: number;
+  billing_day: number;
+  autopay_enabled: boolean;
+  square_customer_id: string | null;
+  square_card_id: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
+export type PaymentStatus = "pending" | "succeeded" | "failed";
+
+export interface SubscriptionPaymentTable {
+  id: UUID;
+  subscription_id: UUID;
+  company_id: UUID;
+  square_payment_id: string | null;
+  amount: number;
+  status: PaymentStatus;
+  billing_period_start: Timestamp;
+  billing_period_end: Timestamp;
+  location_count: number;
+  failure_reason: string | null;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

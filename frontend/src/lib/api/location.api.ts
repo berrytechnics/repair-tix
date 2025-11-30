@@ -9,6 +9,7 @@ export interface Location {
   phone?: string;
   email?: string;
   is_active: boolean;
+  isFree?: boolean;
   taxRate: number;
   taxName?: string | null;
   taxEnabled?: boolean;
@@ -23,6 +24,7 @@ export interface CreateLocationData {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  isFree?: boolean;
   taxRate?: number;
   taxName?: string;
   taxEnabled?: boolean;
@@ -35,6 +37,7 @@ export interface UpdateLocationData {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  isFree?: boolean;
   taxRate?: number;
   taxName?: string;
   taxEnabled?: boolean;

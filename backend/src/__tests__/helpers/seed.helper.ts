@@ -64,6 +64,7 @@ export async function createTestLocation(
       phone: overrides?.phone || null,
       email: overrides?.email || null,
       is_active: overrides?.isActive !== undefined ? overrides.isActive : true,
+      is_free: false,
       tax_rate: 0,
       tax_name: "Tax",
       tax_enabled: false,

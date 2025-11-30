@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import app from "./app.js";
 import { closeConnection, testConnection } from "./config/connection.js";
 import logger from "./config/logger.js";
+import billingScheduler from "./services/billing-scheduler.service.js";
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +24,13 @@ async function startServer(): Promise<void> {
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
+      
+      // Start billing scheduler
+      try {
+        billingScheduler.start();
+      } catch (error) {
+        logger.error("Failed to start billing scheduler:", error);
+      }
     });
   } catch (error) {
     logger.error("Failed to start server:", error);
@@ -35,12 +43,14 @@ startServer();
 // Handle graceful shutdown
 process.on("SIGINT", async () => {
   logger.info("SIGINT signal received: closing HTTP server");
+  billingScheduler.stop();
   await closeConnection();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM signal received: closing HTTP server");
+  billingScheduler.stop();
   await closeConnection();
   process.exit(0);
 });

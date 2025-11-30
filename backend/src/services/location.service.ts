@@ -11,6 +11,7 @@ export interface CreateLocationDto {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  isFree?: boolean;
   taxRate?: number;
   taxName?: string;
   taxEnabled?: boolean;
@@ -23,6 +24,7 @@ export interface UpdateLocationDto {
   phone?: string;
   email?: string;
   isActive?: boolean;
+  isFree?: boolean;
   taxRate?: number;
   taxName?: string;
   taxEnabled?: boolean;
@@ -30,13 +32,14 @@ export interface UpdateLocationDto {
 }
 
 // Output type
-export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at" | "tax_rate" | "tax_name" | "tax_enabled" | "tax_inclusive"> & {
+export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at" | "tax_rate" | "tax_name" | "tax_enabled" | "tax_inclusive" | "is_free"> & {
   id: string;
   company_id: string;
   taxRate: number;
   taxName: string | null;
   taxEnabled: boolean;
   taxInclusive: boolean;
+  isFree: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -50,6 +53,7 @@ function toLocation(location: {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  is_free: boolean;
   tax_rate: number;
   tax_name: string | null;
   tax_enabled: boolean;
@@ -66,6 +70,7 @@ function toLocation(location: {
     phone: location.phone,
     email: location.email,
     is_active: location.is_active,
+    isFree: location.is_free,
     taxRate: Number(location.tax_rate),
     taxName: location.tax_name,
     taxEnabled: location.tax_enabled,
@@ -76,7 +81,7 @@ function toLocation(location: {
 }
 
 export class LocationService {
-  async findAll(companyId: string): Promise<Location[]> {
+  async findAll(companyId: string, includeRestricted: boolean = false): Promise<Location[]> {
     const locations = await db
       .selectFrom("locations")
       .selectAll()
@@ -85,10 +90,28 @@ export class LocationService {
       .orderBy("name", "asc")
       .execute();
 
-    return locations.map(toLocation);
+    let filteredLocations = locations.map(toLocation);
+
+    // If billing has failed, filter out non-free locations unless includeRestricted is true
+    if (!includeRestricted) {
+      try {
+        const billingService = (await import("./billing.service.js")).default;
+        const subscription = await billingService.getSubscription(companyId);
+        
+        // If subscription is past_due, only return free locations
+        if (subscription && subscription.status === "past_due") {
+          filteredLocations = filteredLocations.filter((loc) => loc.isFree);
+        }
+      } catch (error) {
+        // If billing check fails, allow all locations (fail open)
+        console.error("Error checking billing status:", error);
+      }
+    }
+
+    return filteredLocations;
   }
 
-  async findById(id: string, companyId: string): Promise<Location | null> {
+  async findById(id: string, companyId: string, includeRestricted: boolean = false): Promise<Location | null> {
     const location = await db
       .selectFrom("locations")
       .selectAll()
@@ -101,10 +124,41 @@ export class LocationService {
       return null;
     }
 
-    return toLocation(location);
+    const locationObj = toLocation(location);
+
+    // If billing has failed and location is not free, return null unless includeRestricted is true
+    if (!includeRestricted && !locationObj.isFree) {
+      try {
+        const billingService = (await import("./billing.service.js")).default;
+        const subscription = await billingService.getSubscription(companyId);
+        
+        // If subscription is past_due, restrict access to non-free locations
+        if (subscription && subscription.status === "past_due") {
+          return null;
+        }
+      } catch (error) {
+        // If billing check fails, allow access (fail open)
+        console.error("Error checking billing status:", error);
+      }
+    }
+
+    return locationObj;
   }
 
   async create(companyId: string, data: CreateLocationDto): Promise<Location> {
+    // Check if this is the first location for the company
+    const existingLocations = await db
+      .selectFrom("locations")
+      .select([sql<number>`COUNT(*)`.as("count")])
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    const isFirstLocation = Number(existingLocations?.count || 0) === 0;
+    
+    // First location is always free; user cannot override this
+    const isFree = isFirstLocation ? true : (data.isFree !== undefined ? data.isFree : false);
+
     const location = await db
       .insertInto("locations")
       .values({
@@ -115,6 +169,7 @@ export class LocationService {
         phone: data.phone || null,
         email: data.email || null,
         is_active: data.isActive !== undefined ? data.isActive : true,
+        is_free: isFree,
         tax_rate: data.taxRate !== undefined ? data.taxRate : 0,
         tax_name: data.taxName || "Sales Tax",
         tax_enabled: data.taxEnabled !== undefined ? data.taxEnabled : true,
@@ -164,6 +219,9 @@ export class LocationService {
     if (data.isActive !== undefined) {
       updateQuery = updateQuery.set({ is_active: data.isActive });
     }
+    if (data.isFree !== undefined) {
+      updateQuery = updateQuery.set({ is_free: data.isFree });
+    }
     if (data.taxRate !== undefined) {
       updateQuery = updateQuery.set({ tax_rate: data.taxRate });
     }
@@ -178,6 +236,31 @@ export class LocationService {
     }
 
     const updated = await updateQuery.returningAll().executeTakeFirst();
+
+    return updated ? toLocation(updated) : null;
+  }
+
+  async toggleFreeStatus(
+    id: string,
+    companyId: string,
+    isFree: boolean
+  ): Promise<Location | null> {
+    const existing = await this.findById(id, companyId);
+    if (!existing) {
+      return null;
+    }
+
+    const updated = await db
+      .updateTable("locations")
+      .set({
+        is_free: isFree,
+        updated_at: sql`now()`,
+      })
+      .where("id", "=", id)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .returningAll()
+      .executeTakeFirst();
 
     return updated ? toLocation(updated) : null;
   }
