@@ -23,7 +23,7 @@ const RevenueChart = dynamic(() => import("@/components/RevenueChart"), {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, hasPermission, isLoading: userLoading } = useUser();
+  const { user, hasPermission, isLoading: userLoading, isSuperuser, impersonatedCompanyId } = useUser();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
@@ -37,10 +37,24 @@ export default function DashboardPage() {
 
   // Check if user has permission to access this page
   useEffect(() => {
-    if (!userLoading && (!user || !hasPermission("settings.access"))) {
-      router.push("/login");
+    if (!userLoading) {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      
+      // Redirect superusers to superuser settings page (they need to impersonate first)
+      // But allow access if they're currently impersonating
+      if (isSuperuser && !impersonatedCompanyId) {
+        router.push("/settings/superuser");
+        return;
+      }
+      
+      if (!hasPermission("settings.access")) {
+        router.push("/login");
+      }
     }
-  }, [user, userLoading, hasPermission, router]);
+  }, [user, userLoading, hasPermission, isSuperuser, impersonatedCompanyId, router]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {

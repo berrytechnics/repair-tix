@@ -24,9 +24,9 @@ router.get(
   requireLocationContext,
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const searchQuery = req.query.query as string | undefined;
-    const items = await inventoryService.findAll(companyId, searchQuery, locationId);
+    const items = await inventoryService.findAll(companyId, searchQuery, locationId || undefined);
     res.json({ success: true, data: items });
   })
 );

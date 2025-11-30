@@ -8,15 +8,26 @@ import { getPermissionsForRole } from "../config/permissions.js";
  * Middleware factory that checks if user has one of the specified roles
  * Must be used after validateRequest and requireTenantContext middleware
  * Supports multiple roles per user - checks if user has any of the required roles
+ * Superusers bypass all role checks
  */
 export function requireRole(roles: UserRole | UserRole[]): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user as UserWithoutPassword | undefined;
+      
+      if (!user) {
+        return next(new ForbiddenError("Authentication required"));
+      }
+      
+      // Superusers bypass all role checks
+      if (user.role === "superuser") {
+        return next();
+      }
+      
       const companyId = req.companyId;
       
-      if (!user || !companyId) {
-        return next(new ForbiddenError("Authentication and company context required"));
+      if (!companyId) {
+        return next(new ForbiddenError("Company context required"));
       }
       
       const allowedRoles = Array.isArray(roles) ? roles : [roles];
@@ -78,15 +89,26 @@ export function requireTechnicianOrAbove(): RequestHandler {
  * Middleware factory that checks if user has a specific permission
  * Must be used after validateRequest and requireTenantContext middleware
  * Aggregates permissions from all user roles
+ * Superusers bypass all permission checks
  */
 export function requirePermission(permission: string): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user as UserWithoutPassword | undefined;
+
+      if (!user) {
+        return next(new ForbiddenError("Authentication required"));
+      }
+
+      // Superusers bypass all permission checks
+      if (user.role === "superuser") {
+        return next();
+      }
+
       const companyId = req.companyId;
 
-      if (!user || !companyId) {
-        return next(new ForbiddenError("Authentication and company context required"));
+      if (!companyId) {
+        return next(new ForbiddenError("Company context required"));
       }
 
       // Get all roles for the user
@@ -107,6 +129,30 @@ export function requirePermission(permission: string): RequestHandler {
         return next(new ForbiddenError(
           `Access denied. Required permission: ${permission}`
         ));
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/**
+ * Middleware to require superuser role
+ * Must be used after validateRequest middleware
+ */
+export function requireSuperuser(): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user as UserWithoutPassword | undefined;
+
+      if (!user) {
+        return next(new ForbiddenError("Authentication required"));
+      }
+
+      if (user.role !== "superuser") {
+        return next(new ForbiddenError("Superuser access required"));
       }
 
       next();

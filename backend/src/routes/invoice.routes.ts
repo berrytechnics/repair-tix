@@ -32,7 +32,7 @@ router.get(
   requireRole(["admin", "manager", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const customerId = req.query.customerId as string | undefined;
     const status = req.query.status as InvoiceStatus | undefined;
     const ticketId = req.query.ticketId as string | undefined;
@@ -40,7 +40,7 @@ router.get(
       companyId,
       customerId,
       status,
-      locationId,
+      locationId || undefined,
       ticketId
     );
     res.json({ success: true, data: invoices });

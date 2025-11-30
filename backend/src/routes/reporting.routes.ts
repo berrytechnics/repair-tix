@@ -26,13 +26,13 @@ router.get(
   requireRole(["admin", "manager", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     const stats = await reportingService.getDashboardStats(
       companyId,
-      locationId,
+      locationId || undefined,
       startDate,
       endDate
     );
@@ -49,7 +49,7 @@ router.get(
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
     const groupBy = (req.query.groupBy as "day" | "week" | "month") || "day";
@@ -59,7 +59,7 @@ router.get(
       startDate,
       endDate,
       groupBy,
-      locationId
+      locationId || undefined
     );
 
     res.json({ success: true, data: revenueData });
@@ -74,13 +74,13 @@ router.get(
   requireRole(["admin", "manager", "technician", "frontdesk"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     const data = await reportingService.getTicketStatusDistribution(
       companyId,
-      locationId,
+      locationId || undefined,
       startDate,
       endDate
     );
@@ -97,13 +97,13 @@ router.get(
   requireRole(["admin", "manager", "technician", "frontdesk"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     const data = await reportingService.getTicketPriorityDistribution(
       companyId,
-      locationId,
+      locationId || undefined,
       startDate,
       endDate
     );
@@ -140,13 +140,13 @@ router.get(
   requireRole(["admin", "manager"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     const data = await reportingService.getTechnicianPerformance(
       companyId,
-      locationId,
+      locationId || undefined,
       startDate,
       endDate
     );
@@ -163,13 +163,13 @@ router.get(
   requireRole(["admin", "manager", "technician"]),
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     const data = await reportingService.getInvoiceStatusBreakdown(
       companyId,
-      locationId,
+      locationId || undefined,
       startDate,
       endDate
     );

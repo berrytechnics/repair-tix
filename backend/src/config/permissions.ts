@@ -244,6 +244,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Settings
     PERMISSIONS.SETTINGS_ACCESS,
   ],
+
+  superuser: [
+    // Superusers bypass all permission checks in middleware,
+    // but we include all permissions here for consistency
+    ...Object.values(PERMISSIONS),
+  ],
 };
 
 /**

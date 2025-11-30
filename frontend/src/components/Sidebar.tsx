@@ -13,6 +13,7 @@ import {
     ClipboardDocumentIcon,
     Cog6ToothIcon,
     DocumentTextIcon,
+    EyeIcon,
     MoonIcon,
     ShoppingBagIcon,
     Squares2X2Icon,
@@ -54,7 +55,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isLoading, setUser, hasPermission } = useUser();
+  const { user, isLoading, setUser, hasPermission, isSuperuser, impersonatedCompanyId, stopImpersonating } = useUser();
   const { theme, toggleTheme } = useTheme();
 
   const toggleSidebar = () => setIsOpen(!isOpen);
@@ -230,9 +231,41 @@ export default function Sidebar() {
             })}
           </nav>
 
+          {/* Impersonation Indicator */}
+          {isSuperuser && impersonatedCompanyId && (
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="px-3 py-2">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <div className="flex items-start">
+                    <EyeIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
+                        Viewing as Tenant
+                      </p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 truncate mt-1">
+                        {impersonatedCompanyId}
+                      </p>
+                      <button
+                        onClick={() => {
+                          stopImpersonating();
+                          if (isSuperuser) {
+                            router.push("/settings/superuser");
+                          }
+                        }}
+                        className="mt-2 text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 underline"
+                      >
+                        Stop Impersonating
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Location Switcher */}
           {user && (
-            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className={cn("pt-4 border-t border-gray-200 dark:border-gray-700", isSuperuser && impersonatedCompanyId ? "" : "mt-auto")}>
               <div className="px-3 py-2">
                 <LocationSwitcher />
               </div>
@@ -257,6 +290,7 @@ export default function Sidebar() {
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                     {user?.role}
+                    {isSuperuser && " (Superuser)"}
                   </p>
                 </div>
               </div>

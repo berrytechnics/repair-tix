@@ -53,14 +53,14 @@ router.get(
   requireLocationContext,
   asyncHandler(async (req: Request, res: Response) => {
     const companyId = req.companyId!;
-    const locationId = req.locationId!;
+    const locationId = req.locationId; // May be undefined for superusers impersonating
     const customerId = req.query.customerId as string | undefined;
     const status = req.query.status as TicketStatus | undefined;
     const tickets = await ticketService.findAll(
       companyId,
       customerId,
       status,
-      locationId
+      locationId || undefined
     );
 
     // Populate customer and technician data for each ticket

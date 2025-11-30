@@ -27,6 +27,11 @@ interface UserContextType {
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
+  // Superuser impersonation
+  isSuperuser: boolean;
+  impersonatedCompanyId: string | null;
+  impersonateCompany: (companyId: string) => void;
+  stopImpersonating: () => void;
 }
 
 const UserContext = createContext<UserContextType>({
@@ -39,6 +44,10 @@ const UserContext = createContext<UserContextType>({
   hasPermission: () => false,
   hasAnyPermission: () => false,
   hasAllPermissions: () => false,
+  isSuperuser: false,
+  impersonatedCompanyId: null,
+  impersonateCompany: () => {},
+  stopImpersonating: () => {},
 });
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({
@@ -49,7 +58,22 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
     Array<{ id: string; name: string }>
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [impersonatedCompanyId, setImpersonatedCompanyId] = useState<string | null>(null);
   const pathname = usePathname();
+
+  // Load impersonation state from storage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("impersonateCompanyId") || 
+                     sessionStorage.getItem("impersonateCompanyId");
+      if (stored) {
+        setImpersonatedCompanyId(stored);
+      }
+    }
+  }, []);
+
+  // Computed property for superuser check
+  const isSuperuser = user?.role === "superuser";
 
   const fetchUser = async () => {
     try {
@@ -77,11 +101,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
             localStorage.removeItem("refreshToken");
             sessionStorage.removeItem("accessToken");
             sessionStorage.removeItem("refreshToken");
+            // Also clear impersonation state on auth errors
+            localStorage.removeItem("impersonateCompanyId");
+            sessionStorage.removeItem("impersonateCompanyId");
           }
         }
       }
       setUser(null);
       setAvailableLocations([]);
+      // Clear impersonation state when user is cleared
+      setImpersonatedCompanyId(null);
       throw err;
     }
   };
@@ -135,18 +164,44 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // Superuser impersonation functions
+  const impersonateCompany = (companyId: string) => {
+    setImpersonatedCompanyId(companyId);
+    if (typeof window !== "undefined") {
+      // Store in localStorage (persists across sessions)
+      localStorage.setItem("impersonateCompanyId", companyId);
+      sessionStorage.setItem("impersonateCompanyId", companyId);
+    }
+    // Refresh user to get updated context
+    refreshUser();
+  };
+
+  const stopImpersonating = () => {
+    setImpersonatedCompanyId(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("impersonateCompanyId");
+      sessionStorage.removeItem("impersonateCompanyId");
+    }
+    // Refresh user to get updated context
+    refreshUser();
+  };
+
   // Permission checking helpers
+  // Superusers bypass all permission checks
   const hasPermissionCheck = (permission: string): boolean => {
+    if (isSuperuser) return true;
     if (!user || !user.permissions) return false;
     return hasPermission(user.permissions, permission);
   };
 
   const hasAnyPermissionCheck = (permissionList: string[]): boolean => {
+    if (isSuperuser) return true;
     if (!user || !user.permissions) return false;
     return hasAnyPermission(user.permissions, permissionList);
   };
 
   const hasAllPermissionsCheck = (permissionList: string[]): boolean => {
+    if (isSuperuser) return true;
     if (!user || !user.permissions) return false;
     return hasAllPermissions(user.permissions, permissionList);
   };
@@ -163,6 +218,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({
         hasPermission: hasPermissionCheck,
         hasAnyPermission: hasAnyPermissionCheck,
         hasAllPermissions: hasAllPermissionsCheck,
+        isSuperuser,
+        impersonatedCompanyId,
+        impersonateCompany,
+        stopImpersonating,
       }}
     >
       {children}

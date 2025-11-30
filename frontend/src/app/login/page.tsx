@@ -28,8 +28,12 @@ export default function LoginPage() {
       const userWithPermissions = await getCurrentUser();
       setUser(userWithPermissions);
       
-      // Now redirect to dashboard
-      router.push("/dashboard");
+      // Redirect superusers to superuser settings page, others to dashboard
+      if (userWithPermissions.role === "superuser") {
+        router.push("/settings/superuser");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError(

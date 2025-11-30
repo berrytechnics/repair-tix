@@ -5,7 +5,7 @@ import userService, { UserWithoutPassword } from "../services/user.service.js";
 /** Generate a JWT access token with the user and company_id. */
 export function generateNewJWTToken(user: UserWithoutPassword) {
   const token = jwt.sign(
-    { userId: user.id, companyId: user.company_id, type: "access" },
+    { userId: user.id, companyId: user.company_id || null, type: "access" },
     process.env.JWT_SECRET!,
     {
       expiresIn: "1h",
@@ -17,7 +17,7 @@ export function generateNewJWTToken(user: UserWithoutPassword) {
 /** Generate a refresh token with longer expiration. */
 export function generateRefreshToken(user: UserWithoutPassword) {
   const token = jwt.sign(
-    { userId: user.id, companyId: user.company_id, type: "refresh" },
+    { userId: user.id, companyId: user.company_id || null, type: "refresh" },
     process.env.JWT_SECRET!,
     {
       expiresIn: "7d", // Refresh tokens last 7 days
@@ -32,7 +32,7 @@ export async function verifyJWTToken(
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       userId: string;
-      companyId: string;
+      companyId: string | null;
       type?: string;
     };
     
@@ -44,10 +44,19 @@ export async function verifyJWTToken(
     
     const user = await userService.findById(decoded.userId);
     
-    // Verify user still belongs to the company from token
-    if (!user || (user.company_id as unknown as string) !== decoded.companyId) {
-      logger.error("User company mismatch in token");
+    if (!user) {
+      logger.error("User not found in token");
       return null;
+    }
+    
+    // For superusers, company_id can be NULL, so allow mismatch
+    // For regular users, verify company_id matches
+    if (user.role !== "superuser") {
+      const userCompanyId = user.company_id as unknown as string | null;
+      if (userCompanyId !== decoded.companyId) {
+        logger.error("User company mismatch in token");
+        return null;
+      }
     }
     
     return user;
@@ -64,7 +73,7 @@ export async function verifyRefreshToken(
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       userId: string;
-      companyId: string;
+      companyId: string | null;
       type?: string;
     };
     
@@ -76,10 +85,19 @@ export async function verifyRefreshToken(
     
     const user = await userService.findById(decoded.userId);
     
-    // Verify user still belongs to the company from token
-    if (!user || (user.company_id as unknown as string) !== decoded.companyId) {
-      logger.error("User company mismatch in refresh token");
+    if (!user) {
+      logger.error("User not found in refresh token");
       return null;
+    }
+    
+    // For superusers, company_id can be NULL, so allow mismatch
+    // For regular users, verify company_id matches
+    if (user.role !== "superuser") {
+      const userCompanyId = user.company_id as unknown as string | null;
+      if (userCompanyId !== decoded.companyId) {
+        logger.error("User company mismatch in refresh token");
+        return null;
+      }
     }
     
     return user;

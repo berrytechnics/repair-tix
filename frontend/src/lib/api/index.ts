@@ -68,6 +68,17 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add impersonation header if present (for superuser tenant impersonation)
+    if (typeof window !== "undefined" && config.headers) {
+      const impersonateCompanyId = localStorage.getItem("impersonateCompanyId") || 
+                                    sessionStorage.getItem("impersonateCompanyId");
+      if (impersonateCompanyId) {
+        // Express normalizes headers to lowercase, so use lowercase key
+        config.headers["x-impersonate-company"] = impersonateCompanyId;
+      }
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
@@ -147,20 +158,28 @@ api.interceptors.response.use(
 
     // If 401 or 403 (unauthorized/forbidden), token is invalid or expired
     // Since there's no refresh endpoint yet, redirect to login (but not if already on login page)
+    // Don't logout superusers on impersonation-related errors
     if (
       (error.response?.status === 401 || error.response?.status === 403) &&
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
 
-      // Logout
-      logout();
+      // Check if this is an impersonation-related error (superuser might be impersonating)
+      const isImpersonating = typeof window !== "undefined" && 
+        (localStorage.getItem("impersonateCompanyId") || sessionStorage.getItem("impersonateCompanyId"));
       
-      // Redirect to login page if we're in the browser and not already on login/register pages
-      if (typeof window !== "undefined") {
-        const currentPath = window.location.pathname;
-        if (currentPath !== "/login" && currentPath !== "/register") {
-          window.location.href = "/login";
+      // Only logout if not impersonating (impersonation errors might be temporary)
+      if (!isImpersonating) {
+        // Logout
+        logout();
+        
+        // Redirect to login page if we're in the browser and not already on login/register pages
+        if (typeof window !== "undefined") {
+          const currentPath = window.location.pathname;
+          if (currentPath !== "/login" && currentPath !== "/register") {
+            window.location.href = "/login";
+          }
         }
       }
     }
@@ -226,6 +245,12 @@ export const login = async (
       localStorage.removeItem("refreshToken");
     }
     
+    // Clear impersonation state on login (new user session)
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("impersonateCompanyId");
+      sessionStorage.removeItem("impersonateCompanyId");
+    }
+    
     return response.data.data;
   }
 
@@ -265,6 +290,12 @@ export const register = async (
       localStorage.removeItem("refreshToken");
     }
     
+    // Clear impersonation state on register (new user session)
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("impersonateCompanyId");
+      sessionStorage.removeItem("impersonateCompanyId");
+    }
+    
     return response.data.data;
   }
 
@@ -289,6 +320,9 @@ export const logout = (): void => {
     localStorage.removeItem("refreshToken");
     sessionStorage.removeItem("accessToken");
     sessionStorage.removeItem("refreshToken");
+    // Clear impersonation state
+    localStorage.removeItem("impersonateCompanyId");
+    sessionStorage.removeItem("impersonateCompanyId");
   }
 };
 

@@ -8,6 +8,7 @@ import {
   EnvelopeIcon,
   MapPinIcon,
   ShieldCheckIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -16,7 +17,7 @@ import { useEffect } from "react";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, hasPermission, isLoading } = useUser();
+  const { user, hasPermission, isLoading, isSuperuser } = useUser();
 
   // Check if user has permission to access settings
   useEffect(() => {
@@ -85,10 +86,22 @@ export default function SettingsPage() {
       permission: "payments.configure",
       adminOnly: true,
     },
+    {
+      name: "Superuser Settings",
+      description: "View system as any tenant and manage tenant access",
+      href: "/settings/superuser",
+      icon: UserCircleIcon,
+      permission: "settings.access",
+      superuserOnly: true,
+    },
   ];
 
   const availableSettings = settingsItems.filter((item) => {
     if (!user) return false;
+    // Check superuser-only items
+    if ((item as { superuserOnly?: boolean }).superuserOnly && !isSuperuser) {
+      return false;
+    }
     // Check admin-only items
     if (item.adminOnly && user.role !== "admin") {
       return false;

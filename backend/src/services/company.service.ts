@@ -54,6 +54,17 @@ function toCompany(company: {
 }
 
 export class CompanyService {
+  async findAll(): Promise<Company[]> {
+    const companies = await db
+      .selectFrom("companies")
+      .selectAll()
+      .where("deleted_at", "is", null)
+      .orderBy("created_at", "desc")
+      .execute();
+
+    return companies.map(toCompany);
+  }
+
   async findById(id: string): Promise<Company | null> {
     const company = await db
       .selectFrom("companies")

@@ -197,12 +197,28 @@ router.get(
       throw new UnauthorizedError("User not found");
     }
     
+    const formattedUser = formatUserForResponse(user);
+    
+    // For superusers, get permissions from config (they bypass company context)
+    if (user.role === "superuser") {
+      const { ROLE_PERMISSIONS } = await import("../config/permissions.js");
+      const permissions = ROLE_PERMISSIONS.superuser || [];
+      
+      res.json({
+        success: true,
+        data: {
+          ...formattedUser,
+          permissions,
+        },
+      });
+      return;
+    }
+    
+    // Regular users need company context
     const companyId = req.companyId;
     if (!companyId) {
       throw new UnauthorizedError("Company context required");
     }
-    
-    const formattedUser = formatUserForResponse(user);
     
     // Get permissions for user's role in their company
     const permissions = await getPermissionsForRole(user.role, companyId);

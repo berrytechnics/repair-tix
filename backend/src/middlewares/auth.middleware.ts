@@ -29,7 +29,8 @@ export async function validateRequest(
   }
 
   req.user = user;
-  req.companyId = user.company_id as unknown as string; // Attach company_id for convenience
+  // Attach company_id for convenience (can be undefined for superusers)
+  req.companyId = user.company_id ? (user.company_id as unknown as string) : undefined;
   next();
 }
 

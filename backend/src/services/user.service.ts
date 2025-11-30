@@ -37,7 +37,7 @@ export type UserWithoutPassword = Omit<UserTable, "password"> & {
 // Accepts query results (which may have string IDs instead of UUID types)
 function toUserWithoutPassword(user: {
   id: string;
-  company_id: string;
+  company_id: string | null;
   current_location_id?: string | null;
   first_name: string;
   last_name: string;

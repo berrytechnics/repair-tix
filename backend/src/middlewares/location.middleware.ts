@@ -5,7 +5,7 @@ import { db } from "../config/connection.js";
 
 /**
  * Helper function to check if user has access to a location
- * Admins have access to all company locations
+ * Admins and superusers have access to all company locations
  * Other users must be explicitly assigned to the location
  */
 export async function userHasLocationAccess(
@@ -14,8 +14,8 @@ export async function userHasLocationAccess(
   companyId: string,
   userRole: string
 ): Promise<boolean> {
-  // Admins can access all company locations
-  if (userRole === "admin") {
+  // Superusers and admins can access all company locations
+  if (userRole === "superuser" || userRole === "admin") {
     // Verify location belongs to company
     const location = await db
       .selectFrom("locations")
@@ -46,6 +46,10 @@ export async function userHasLocationAccess(
  * Middleware to extract and validate location context
  * Ensures user has access to their current location
  * Must be used after validateRequest and requireTenantContext middleware
+ * 
+ * For superusers impersonating:
+ * - If they have a current_location_id, use it
+ * - Otherwise, allow access but don't require a specific location (services should handle this)
  */
 export async function requireLocationContext(
   req: Request,
@@ -61,6 +65,14 @@ export async function requireLocationContext(
     }
 
     const currentLocationId = user.current_location_id as unknown as string | undefined;
+
+    // For superusers impersonating, allow bypass if no current_location_id is set
+    // They can access any location in the impersonated company
+    if (user.role === "superuser" && !currentLocationId) {
+      // Superuser impersonating without a specific location - allow access
+      // Services should handle the case where locationId is undefined
+      return next();
+    }
 
     if (!currentLocationId) {
       return next(new ForbiddenError("User must have a current location set"));

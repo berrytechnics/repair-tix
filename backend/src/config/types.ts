@@ -192,7 +192,7 @@ export interface TicketTable {
   deleted_at: SoftDelete;
 }
 
-export type UserRole = "admin" | "manager" | "technician" | "frontdesk";
+export type UserRole = "admin" | "manager" | "technician" | "frontdesk" | "superuser";
 
 export type PurchaseOrderStatus =
   | "draft"
@@ -303,7 +303,7 @@ export interface InventoryTransferTable {
 
 export interface UserTable {
   id: UUID;
-  company_id: UUID;
+  company_id: UUID | null;
   current_location_id: UUID | null;
   first_name: string;
   last_name: string;

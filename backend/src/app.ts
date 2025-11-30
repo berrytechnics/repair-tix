@@ -6,6 +6,7 @@ import { HttpError, ValidationError } from "./config/errors.js";
 import logger from "./config/logger.js";
 import { apiLimiter } from "./middlewares/rate-limit.middleware.js";
 import assetRoutes from "./routes/asset.routes.js";
+import companyRoutes from "./routes/company.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
 import diagnosticChecklistRoutes from "./routes/diagnostic-checklist.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
@@ -62,6 +63,7 @@ app.use("/api", apiLimiter);
 // Routes - all routes are prefixed with /api
 app.use("/api/auth", userRoutes);
 app.use("/api/users", userRoutes); // Also mount user routes at /api/users for technicians endpoint
+app.use("/api/companies", companyRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/diagnostic-checklists", diagnosticChecklistRoutes);
