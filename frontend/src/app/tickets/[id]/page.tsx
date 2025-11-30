@@ -15,12 +15,21 @@ import {
   updateTicket,
   updateTicketStatus,
 } from "@/lib/api/ticket.api";
-import ChecklistResponseForm from "@/components/ChecklistResponseForm";
 import { useUser } from "@/lib/UserContext";
 import { getPriorityColor, getStatusColor } from "@/lib/utils/ticketUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const ChecklistResponseForm = dynamic(
+  () => import("@/components/ChecklistResponseForm"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading form..." />,
+  }
+);
 
 
 export default function TicketDetailPage({

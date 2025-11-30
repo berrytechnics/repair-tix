@@ -12,10 +12,6 @@ import React, { useEffect, useState } from "react";
 
 const EMAIL_PROVIDERS = [
   { id: "sendgrid", name: "SendGrid", description: "100 emails/day free tier" },
-  { id: "mailgun", name: "Mailgun", description: "1,000 emails/month free tier" },
-  { id: "resend", name: "Resend", description: "3,000 emails/month free tier" },
-  { id: "aws_ses", name: "AWS SES", description: "62,000 emails/month free tier (first year)" },
-  { id: "brevo", name: "Brevo", description: "300 emails/day free tier" },
 ];
 
 export default function EmailIntegrationForm() {

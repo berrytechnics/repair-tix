@@ -1,10 +1,19 @@
 "use client";
 
-import ChecklistTemplateForm from "@/components/ChecklistTemplateForm";
 import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const ChecklistTemplateForm = dynamic(
+  () => import("@/components/ChecklistTemplateForm"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading form..." />,
+  }
+);
 
 export default function EditChecklistTemplatePage({
   params,

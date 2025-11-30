@@ -134,35 +134,6 @@ export const savePaymentIntegrationValidation = [
     .trim()
     .notEmpty()
     .withMessage('Location ID is required'),
-  // Stripe credentials validation
-  body('credentials.apiKey')
-    .if((value, { req }) => req.params?.type === 'payment' && req.body?.provider === 'stripe')
-    .exists()
-    .withMessage('API key is required for Stripe')
-    .trim()
-    .notEmpty()
-    .withMessage('API key is required')
-    .matches(/^sk_(test_|live_)/)
-    .withMessage('Stripe API key must start with sk_test_ or sk_live_'),
-  // PayPal credentials validation
-  body('credentials.clientId')
-    .if((value, { req }) => req.params?.type === 'payment' && req.body?.provider === 'paypal')
-    .exists()
-    .withMessage('Client ID is required for PayPal')
-    .trim()
-    .notEmpty()
-    .withMessage('Client ID is required')
-    .isLength({ min: 10 })
-    .withMessage('Client ID must be at least 10 characters'),
-  body('credentials.clientSecret')
-    .if((value, { req }) => req.params?.type === 'payment' && req.body?.provider === 'paypal')
-    .exists()
-    .withMessage('Client secret is required for PayPal')
-    .trim()
-    .notEmpty()
-    .withMessage('Client secret is required')
-    .isLength({ min: 10 })
-    .withMessage('Client secret must be at least 10 characters'),
 ];
 
 /**

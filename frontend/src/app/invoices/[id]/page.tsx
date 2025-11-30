@@ -14,10 +14,19 @@ import { getIntegration, IntegrationConfig } from "@/lib/api/integration.api";
 import { processPayment, refundPayment } from "@/lib/api/payment.api";
 import { useUser } from "@/lib/UserContext";
 import { generateInvoicePDF } from "@/lib/utils/pdfGenerator";
-import SquarePaymentForm from "@/components/SquarePaymentForm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const SquarePaymentForm = dynamic(
+  () => import("@/components/SquarePaymentForm"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading payment form..." />,
+  }
+);
 
 export default function InvoiceDetailPage({
   params,

@@ -13,13 +13,50 @@ import {
   type InvoiceStatusBreakdown,
 } from "@/lib/api/reporting.api";
 import { useUser } from "@/lib/UserContext";
-import TicketStatusChart from "@/components/Reporting/TicketStatusChart";
-import TicketPriorityChart from "@/components/Reporting/TicketPriorityChart";
-import RevenueByLocationChart from "@/components/Reporting/RevenueByLocationChart";
-import TechnicianPerformanceChart from "@/components/Reporting/TechnicianPerformanceChart";
-import InvoiceStatusChart from "@/components/Reporting/InvoiceStatusChart";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const TicketStatusChart = dynamic(
+  () => import("@/components/Reporting/TicketStatusChart"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading chart..." />,
+  }
+);
+
+const TicketPriorityChart = dynamic(
+  () => import("@/components/Reporting/TicketPriorityChart"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading chart..." />,
+  }
+);
+
+const RevenueByLocationChart = dynamic(
+  () => import("@/components/Reporting/RevenueByLocationChart"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading chart..." />,
+  }
+);
+
+const TechnicianPerformanceChart = dynamic(
+  () => import("@/components/Reporting/TechnicianPerformanceChart"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading chart..." />,
+  }
+);
+
+const InvoiceStatusChart = dynamic(
+  () => import("@/components/Reporting/InvoiceStatusChart"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading chart..." />,
+  }
+);
 
 export default function ReportingPage() {
   const router = useRouter();

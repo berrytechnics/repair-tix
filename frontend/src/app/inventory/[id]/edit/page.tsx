@@ -1,10 +1,16 @@
 "use client";
 
-import InventoryForm from "@/components/InventoryForm";
 import { useUser } from "@/lib/UserContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const InventoryForm = dynamic(() => import("@/components/InventoryForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function EditInventoryPage({
   params,

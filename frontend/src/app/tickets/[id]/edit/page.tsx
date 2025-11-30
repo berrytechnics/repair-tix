@@ -1,9 +1,15 @@
 "use client";
 
-import TicketForm from "@/components/TicketForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const TicketForm = dynamic(() => import("@/components/TicketForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function EditTicketPage({ params }: { params: { id: string } }) {
   const router = useRouter();

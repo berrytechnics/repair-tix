@@ -104,8 +104,8 @@ const webhookProviderValidation = [
     .exists()
     .withMessage('Provider is required')
     .trim()
-    .isIn(['square', 'stripe', 'paypal'])
-    .withMessage('Provider must be one of: square, stripe, paypal'),
+    .isIn(['square'])
+    .withMessage('Provider must be square'),
 ];
 
 // POST /api/payments/process - Process payment for an invoice
@@ -367,51 +367,31 @@ router.post(
       let transactionId: string | undefined;
       let status: string | undefined;
 
-      if (provider === 'square') {
-        // Square webhook structure
-        const data = req.body.data;
+      // Square webhook structure
+      const data = req.body.data;
+      
+      // Handle payment webhooks
+      if (data?.object?.payment) {
+        transactionId = data.object.payment.id;
+        const referenceId = data.object.payment.reference_id;
+        if (referenceId) {
+          invoiceId = referenceId;
+        }
+        status = data.object.payment.status === 'COMPLETED' ? 'paid' : undefined;
+      }
+      
+      // Handle terminal checkout webhooks
+      if (data?.object?.terminalCheckout) {
+        const checkout = data.object.terminalCheckout;
         
-        // Handle payment webhooks
-        if (data?.object?.payment) {
-          transactionId = data.object.payment.id;
-          const referenceId = data.object.payment.reference_id;
+        // If checkout is completed, get the payment IDs
+        if (checkout.status === 'COMPLETED' && checkout.payment_ids && checkout.payment_ids.length > 0) {
+          transactionId = checkout.payment_ids[0];
+          const referenceId = checkout.reference_id;
           if (referenceId) {
             invoiceId = referenceId;
           }
-          status = data.object.payment.status === 'COMPLETED' ? 'paid' : undefined;
-        }
-        
-        // Handle terminal checkout webhooks
-        if (data?.object?.terminalCheckout) {
-          const checkout = data.object.terminalCheckout;
-          
-          // If checkout is completed, get the payment IDs
-          if (checkout.status === 'COMPLETED' && checkout.payment_ids && checkout.payment_ids.length > 0) {
-            transactionId = checkout.payment_ids[0];
-            const referenceId = checkout.reference_id;
-            if (referenceId) {
-              invoiceId = referenceId;
-            }
-            status = 'paid';
-          }
-        }
-      } else if (provider === 'stripe') {
-        // Stripe webhook structure
-        const event = req.body;
-        if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
-          const paymentIntent = event.data.object;
-          transactionId = paymentIntent.id;
-          invoiceId = paymentIntent.metadata?.invoiceId;
-          status = paymentIntent.status === 'succeeded' ? 'paid' : undefined;
-        }
-      } else if (provider === 'paypal') {
-        // PayPal webhook structure
-        const event = req.body;
-        if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
-          const resource = event.resource;
-          transactionId = resource.id;
-          invoiceId = resource.custom_id || resource.invoice_id;
-          status = resource.status === 'COMPLETED' ? 'paid' : undefined;
+          status = 'paid';
         }
       }
 

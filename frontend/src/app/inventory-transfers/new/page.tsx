@@ -1,9 +1,15 @@
 "use client";
 
-import TransferForm from "@/components/TransferForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const TransferForm = dynamic(() => import("@/components/TransferForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function NewInventoryTransferPage() {
   const router = useRouter();

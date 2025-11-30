@@ -1,9 +1,15 @@
 "use client";
 
-import InvoiceForm from "@/components/InvoiceForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const InvoiceForm = dynamic(() => import("@/components/InvoiceForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function NewInvoicePage() {
   const router = useRouter();

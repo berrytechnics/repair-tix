@@ -2,8 +2,6 @@
 import credentialService from '../../services/credential.service.js';
 import companyService from '../../services/company.service.js';
 import squareAdapter from './square.adapter.js';
-import stripeAdapter from './stripe.adapter.js';
-import paypalAdapter from './paypal.adapter.js';
 import { PaymentIntegrationConfig } from '../../config/integrations.js';
 import logger from '../../config/logger.js';
 import {
@@ -61,16 +59,10 @@ export class PaymentService {
     }
 
     // Route to appropriate adapter based on provider
-    switch (config.provider) {
-      case 'square':
-        return await squareAdapter.processPayment(config, paymentData);
-      case 'stripe':
-        return await stripeAdapter.processPayment(config, paymentData);
-      case 'paypal':
-        return await paypalAdapter.processPayment(config, paymentData);
-      default:
-        throw new Error(`Payment provider ${config.provider} is not supported`);
+    if (config.provider === 'square') {
+      return await squareAdapter.processPayment(config, paymentData);
     }
+    throw new Error(`Payment provider ${config.provider} is not supported`);
   }
 
   /**
@@ -87,16 +79,10 @@ export class PaymentService {
     }
 
     // Route to appropriate adapter based on provider
-    switch (config.provider) {
-      case 'square':
-        return await squareAdapter.refundPayment(config, refundData);
-      case 'stripe':
-        return await stripeAdapter.refundPayment(config, refundData);
-      case 'paypal':
-        return await paypalAdapter.refundPayment(config, refundData);
-      default:
-        throw new Error(`Payment provider ${config.provider} is not supported`);
+    if (config.provider === 'square') {
+      return await squareAdapter.refundPayment(config, refundData);
     }
+    throw new Error(`Payment provider ${config.provider} is not supported`);
   }
 
   /**

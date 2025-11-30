@@ -1,9 +1,15 @@
 "use client";
 
-import LocationForm from "@/components/LocationForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const LocationForm = dynamic(() => import("@/components/LocationForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function NewLocationPage() {
   const router = useRouter();

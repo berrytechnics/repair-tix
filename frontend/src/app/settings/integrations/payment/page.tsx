@@ -1,9 +1,18 @@
 "use client";
 
-import PaymentIntegrationForm from "@/components/PaymentIntegrationForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const PaymentIntegrationForm = dynamic(
+  () => import("@/components/PaymentIntegrationForm"),
+  {
+    ssr: false,
+    loading: () => <LoadingSpinner text="Loading form..." />,
+  }
+);
 
 export default function PaymentIntegrationPage() {
   const router = useRouter();

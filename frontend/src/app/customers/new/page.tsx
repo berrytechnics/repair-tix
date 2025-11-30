@@ -1,9 +1,15 @@
 "use client";
 
-import CustomerForm from "@/components/CustomerForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const CustomerForm = dynamic(() => import("@/components/CustomerForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 export default function NewCustomerPage() {
   const router = useRouter();

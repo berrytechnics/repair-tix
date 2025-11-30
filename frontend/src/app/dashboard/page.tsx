@@ -10,10 +10,16 @@ import {
 import { getTickets, Ticket } from "@/lib/api/ticket.api";
 import { useUser } from "@/lib/UserContext";
 import { formatStatus, getStatusColor } from "@/lib/utils/ticketUtils";
-import RevenueChart from "@/components/RevenueChart";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const RevenueChart = dynamic(() => import("@/components/RevenueChart"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading chart..." />,
+});
 
 export default function DashboardPage() {
   const router = useRouter();

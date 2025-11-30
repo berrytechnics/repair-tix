@@ -1,9 +1,15 @@
 "use client";
 
-import AssetForm from "@/components/AssetForm";
 import { useUser } from "@/lib/UserContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import dynamic from "next/dynamic";
+import LoadingSpinner from "@/components/LoadingSpinner";
+
+const AssetForm = dynamic(() => import("@/components/AssetForm"), {
+  ssr: false,
+  loading: () => <LoadingSpinner text="Loading form..." />,
+});
 
 function NewAssetContent() {
   const router = useRouter();

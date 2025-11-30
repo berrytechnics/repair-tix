@@ -11,8 +11,6 @@ import React, { useEffect, useState } from "react";
 
 const PAYMENT_PROVIDERS = [
   { id: "square", name: "Square", description: "2.6% + $0.10 per transaction" },
-  { id: "stripe", name: "Stripe", description: "2.9% + $0.30 per transaction" },
-  { id: "paypal", name: "PayPal", description: "2.9% + fixed fee per transaction" },
 ];
 
 export default function PaymentIntegrationForm() {
@@ -120,29 +118,14 @@ export default function PaymentIntegrationForm() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (formData.provider === "square") {
-      if (!formData.credentials.accessToken?.trim()) {
-        newErrors["credentials.accessToken"] = "Access token is required";
-      }
-      if (!formData.credentials.applicationId?.trim()) {
-        newErrors["credentials.applicationId"] = "Application ID is required";
-      }
-      if (!formData.credentials.locationId?.trim()) {
-        newErrors["credentials.locationId"] = "Location ID is required";
-      }
-    } else if (formData.provider === "stripe") {
-      if (!formData.credentials.apiKey?.trim()) {
-        newErrors["credentials.apiKey"] = "API key is required";
-      } else if (!formData.credentials.apiKey.startsWith("sk_")) {
-        newErrors["credentials.apiKey"] = "Stripe API key must start with sk_";
-      }
-    } else if (formData.provider === "paypal") {
-      if (!formData.credentials.clientId?.trim()) {
-        newErrors["credentials.clientId"] = "Client ID is required";
-      }
-      if (!formData.credentials.clientSecret?.trim()) {
-        newErrors["credentials.clientSecret"] = "Client secret is required";
-      }
+    if (!formData.credentials.accessToken?.trim()) {
+      newErrors["credentials.accessToken"] = "Access token is required";
+    }
+    if (!formData.credentials.applicationId?.trim()) {
+      newErrors["credentials.applicationId"] = "Application ID is required";
+    }
+    if (!formData.credentials.locationId?.trim()) {
+      newErrors["credentials.locationId"] = "Location ID is required";
     }
 
     setErrors(newErrors);
@@ -423,100 +406,6 @@ export default function PaymentIntegrationForm() {
               {errors["credentials.locationId"] && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                   {errors["credentials.locationId"]}
-                </p>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Stripe credentials */}
-        {formData.provider === "stripe" && (
-          <div>
-            <label
-              htmlFor="credentials.apiKey"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              API Key
-            </label>
-            <input
-              type="password"
-              id="credentials.apiKey"
-              name="credentials.apiKey"
-              value={formData.credentials.apiKey || ""}
-              onChange={handleChange}
-              placeholder={
-                integration
-                  ? "Enter new API key to update (leave blank to keep current)"
-                  : "Enter your Stripe API key (sk_test_... or sk_live_...)"
-              }
-              className={`block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                errors["credentials.apiKey"] ? "border-red-500" : ""
-              }`}
-            />
-            {errors["credentials.apiKey"] && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors["credentials.apiKey"]}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Your API key is encrypted and stored securely. Never share your API
-              key.
-            </p>
-          </div>
-        )}
-
-        {/* PayPal credentials */}
-        {formData.provider === "paypal" && (
-          <>
-            <div>
-              <label
-                htmlFor="credentials.clientId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Client ID
-              </label>
-              <input
-                type="text"
-                id="credentials.clientId"
-                name="credentials.clientId"
-                value={formData.credentials.clientId || ""}
-                onChange={handleChange}
-                placeholder="Enter your PayPal client ID"
-                className={`block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  errors["credentials.clientId"] ? "border-red-500" : ""
-                }`}
-              />
-              {errors["credentials.clientId"] && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors["credentials.clientId"]}
-                </p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="credentials.clientSecret"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Client Secret
-              </label>
-              <input
-                type="password"
-                id="credentials.clientSecret"
-                name="credentials.clientSecret"
-                value={formData.credentials.clientSecret || ""}
-                onChange={handleChange}
-                placeholder={
-                  integration
-                    ? "Enter new client secret to update (leave blank to keep current)"
-                    : "Enter your PayPal client secret"
-                }
-                className={`block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                  errors["credentials.clientSecret"] ? "border-red-500" : ""
-                }`}
-              />
-              {errors["credentials.clientSecret"] && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors["credentials.clientSecret"]}
                 </p>
               )}
             </div>
