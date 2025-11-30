@@ -43,7 +43,7 @@ export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
-  const { user: currentUser, hasPermission, isLoading: userLoading } = useUser();
+  const { user: currentUser, isLoading: userLoading } = useUser();
   const [user, setUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [userLocations, setUserLocations] = useState<Array<{ id: string; name: string }>>([]);
