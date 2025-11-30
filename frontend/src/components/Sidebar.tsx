@@ -151,6 +151,12 @@ export default function Sidebar() {
   // Filter navigation based on user permissions
   const navigation = allNavigationItems.filter((item) => {
     if (!user) return false;
+    
+    // Superusers not impersonating should only see Settings
+    if (isSuperuser && !impersonatedCompanyId) {
+      return item.href === "/settings";
+    }
+    
     // Check admin-only items
     if (item.adminOnly && user.role !== "admin") {
       return false;

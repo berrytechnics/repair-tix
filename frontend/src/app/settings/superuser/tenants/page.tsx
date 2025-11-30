@@ -1,9 +1,9 @@
 "use client";
 
 import { useUser } from "@/lib/UserContext";
-import { getCompanies, getCompanyLocations, toggleLocationFreeStatus } from "@/lib/api/company.api";
+import { getCompanies, getCompanyLocations, toggleLocationFreeStatus, PaginationInfo } from "@/lib/api/company.api";
 import { Location } from "@/lib/api/location.api";
-import { BuildingOfficeIcon, EyeIcon, MapPinIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BuildingOfficeIcon, EyeIcon, MapPinIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -26,6 +26,13 @@ export default function TenantsPage() {
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [loadingLocations, setLoadingLocations] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+  });
 
   // Redirect if not superuser
   useEffect(() => {
@@ -42,9 +49,16 @@ export default function TenantsPage() {
       try {
         setLoadingCompanies(true);
         setError(null);
-        const response = await getCompanies();
+        const response = await getCompanies(
+          pagination.page,
+          pagination.limit,
+          searchQuery || undefined
+        );
         if (response.data) {
           setCompanies(response.data);
+        }
+        if (response.pagination) {
+          setPagination(response.pagination);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load companies");
@@ -53,8 +67,14 @@ export default function TenantsPage() {
       }
     };
 
+    // Reset to page 1 when search changes
+    if (searchQuery !== undefined) {
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }
+
     fetchCompanies();
-  }, [isSuperuser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperuser, pagination.page, pagination.limit, searchQuery]);
 
   // Fetch locations when company is expanded
   useEffect(() => {
@@ -133,6 +153,22 @@ export default function TenantsPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Manage tenants, their locations, and view the system as any tenant
             </p>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="mt-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tenants by name..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
           </div>
         </div>
       </div>
@@ -271,46 +307,69 @@ export default function TenantsPage() {
                         </p>
                       ) : (
                         <div className="space-y-2">
-                          {locations.map((location) => (
-                            <div
-                              key={location.id}
-                              className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                            >
-                              <div className="flex items-center flex-1">
-                                <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {location.name}
-                                  </p>
-                                  {location.address && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {location.address}
+                          {locations.map((location, index) => {
+                            const isFirstLocation = index === 0;
+                            const isFree = location.isFree || false;
+                            
+                            return (
+                              <div
+                                key={location.id}
+                                className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                              >
+                                <div className="flex items-center flex-1">
+                                  <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                      {location.name}
+                                      {isFirstLocation && (
+                                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                          (First location)
+                                        </span>
+                                      )}
                                     </p>
-                                  )}
+                                    {location.address && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {location.address}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <label className={`flex items-center ${isFirstLocation ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isFirstLocation ? true : isFree}
+                                      disabled={isFirstLocation}
+                                      onChange={() => {
+                                        if (!isFirstLocation) {
+                                          handleToggleFree(
+                                            company.id,
+                                            location.id,
+                                            isFree
+                                          );
+                                        }
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isFirstLocation) {
+                                          e.preventDefault();
+                                        }
+                                      }}
+                                      className={`h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500 ${
+                                        isFirstLocation ? 'opacity-50 cursor-not-allowed' : ''
+                                      }`}
+                                    />
+                                    <span className={`ml-2 text-sm ${isFirstLocation ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                      Free
+                                      {isFirstLocation && (
+                                        <span className="ml-1 text-xs">(required)</span>
+                                      )}
+                                    </span>
+                                  </label>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <label className="flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={location.isFree || false}
-                                    onChange={() =>
-                                      handleToggleFree(
-                                        company.id,
-                                        location.id,
-                                        location.isFree || false
-                                      )
-                                    }
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                                    Free
-                                  </span>
-                                </label>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -321,6 +380,48 @@ export default function TenantsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow px-6 py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+              {pagination.total} tenants
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (pagination.page > 1) {
+                  setPagination((prev) => ({ ...prev, page: prev.page - 1 }));
+                }
+              }}
+              disabled={pagination.page === 1}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+              Previous
+            </button>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => {
+                if (pagination.page < pagination.totalPages) {
+                  setPagination((prev) => ({ ...prev, page: prev.page + 1 }));
+                }
+              }}
+              disabled={pagination.page >= pagination.totalPages}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

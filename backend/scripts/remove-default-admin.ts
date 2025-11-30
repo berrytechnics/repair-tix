@@ -38,7 +38,7 @@ async function removeDefaultAdmin() {
       .selectFrom("users")
       .selectAll()
       .where("email", "in", [
-        "admin@repairforge.com",
+        "admin@repairtix.com",
         "admin@repairmanager.com",
       ])
       .where("role", "=", "admin")

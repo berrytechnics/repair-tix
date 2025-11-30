@@ -1,12 +1,12 @@
-# RepairForge Quick Start Guide
+# RepairTix Quick Start Guide
 
-Welcome to RepairForge! This guide will help you get up and running quickly.
+Welcome to RepairTix! This guide will help you get up and running quickly.
 
 ## Getting Started
 
 ### Access the Application
 
-Once RepairForge is running, open your web browser and navigate to:
+Once RepairTix is running, open your web browser and navigate to:
 
 **http://localhost:3000**
 
@@ -14,9 +14,9 @@ The application works best in modern browsers (Chrome, Firefox, Safari, Edge).
 
 ### First Login
 
-When you first access RepairForge, use these default credentials:
+When you first access RepairTix, use these default credentials:
 
-- **Email**: `admin@repairforge.com`
+- **Email**: `admin@repairtix.com`
 - **Password**: `admin123`
 
 **Security Warning**: Change this password immediately after your first login!
@@ -248,7 +248,7 @@ The system will:
 
 ## User Roles and Permissions
 
-RepairForge supports four user roles with different permission levels:
+RepairTix supports four user roles with different permission levels:
 
 ### Admin
 - **Full access** to all features
@@ -332,7 +332,7 @@ If you encounter issues or have questions:
 
 ## Browser Compatibility
 
-RepairForge works best with:
+RepairTix works best with:
 - Chrome/Edge (latest versions)
 - Firefox (latest versions)
 - Safari (latest versions)

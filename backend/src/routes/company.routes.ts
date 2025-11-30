@@ -8,17 +8,39 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 const router = express.Router();
 
-// GET /api/companies - List all companies (superuser only)
+// GET /api/companies - List all companies with pagination and search (superuser only)
 router.get(
   "/",
   validateRequest,
   requireSuperuser(),
   asyncHandler(async (req: Request, res: Response) => {
-    const companies = await companyService.findAll();
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const search = req.query.search as string | undefined;
+
+    // Validate pagination parameters
+    if (page < 1) {
+      res.status(400).json({
+        success: false,
+        error: { message: "Page must be greater than 0" },
+      });
+      return;
+    }
+
+    if (limit < 1 || limit > 100) {
+      res.status(400).json({
+        success: false,
+        error: { message: "Limit must be between 1 and 100" },
+      });
+      return;
+    }
+
+    const result = await companyService.findAll({ page, limit, search });
     
     res.json({
       success: true,
-      data: companies,
+      data: result.data,
+      pagination: result.pagination,
     });
   })
 );
@@ -89,6 +111,18 @@ router.patch(
     const company = await companyService.findById(companyId);
     if (!company) {
       throw new NotFoundError("Company not found");
+    }
+    
+    // Prevent unsetting free status on the first location
+    if (!isFree) {
+      const allLocations = await locationService.findAll(companyId, true);
+      if (allLocations.length > 0 && allLocations[0].id === locationId) {
+        res.status(400).json({
+          success: false,
+          error: { message: "The first location must always be free" },
+        });
+        return;
+      }
     }
     
     const location = await locationService.toggleFreeStatus(

@@ -1,6 +1,6 @@
 # Monitoring and Observability Guide
 
-This guide covers monitoring, logging, and error tracking setup for RepairForge in production.
+This guide covers monitoring, logging, and error tracking setup for RepairTix in production.
 
 ## Overview
 
@@ -135,7 +135,7 @@ module.exports = withSentryConfig(
   {
     silent: true,
     org: "your-org",
-    project: "repair-forge",
+    project: "repair-tix",
   }
 );
 ```
@@ -149,7 +149,7 @@ NEXT_PUBLIC_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
 
 ### Winston Configuration
 
-RepairForge uses Winston for logging. Current configuration:
+RepairTix uses Winston for logging. Current configuration:
 
 - **Development**: Console + file logging
 - **Production**: Console logging only (configure for your platform)
@@ -189,7 +189,7 @@ logger.info("User logged in", {
 
 ### Application Health Endpoint
 
-RepairForge includes a health check endpoint:
+RepairTix includes a health check endpoint:
 
 ```
 GET /health

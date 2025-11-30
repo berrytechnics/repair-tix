@@ -81,16 +81,36 @@ function toLocation(location: {
 }
 
 export class LocationService {
-  async findAll(companyId: string, includeRestricted: boolean = false): Promise<Location[]> {
+  async findAll(companyId: string, includeRestricted = false): Promise<Location[]> {
     const locations = await db
       .selectFrom("locations")
       .selectAll()
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
+      .orderBy("created_at", "asc")
       .orderBy("name", "asc")
       .execute();
 
     let filteredLocations = locations.map(toLocation);
+    
+    // Ensure the first location (by created_at) is always free
+    if (filteredLocations.length > 0) {
+      const firstLocation = filteredLocations[0];
+      if (!firstLocation.isFree) {
+        // Update the first location to be free
+        await db
+          .updateTable("locations")
+          .set({
+            is_free: true,
+            updated_at: sql`now()`,
+          })
+          .where("id", "=", firstLocation.id)
+          .where("company_id", "=", companyId)
+          .execute();
+        // Update the local object
+        filteredLocations[0] = { ...firstLocation, isFree: true };
+      }
+    }
 
     // If billing has failed, filter out non-free locations unless includeRestricted is true
     if (!includeRestricted) {
@@ -111,7 +131,7 @@ export class LocationService {
     return filteredLocations;
   }
 
-  async findById(id: string, companyId: string, includeRestricted: boolean = false): Promise<Location | null> {
+  async findById(id: string, companyId: string, includeRestricted = false): Promise<Location | null> {
     const location = await db
       .selectFrom("locations")
       .selectAll()
@@ -248,6 +268,21 @@ export class LocationService {
     const existing = await this.findById(id, companyId);
     if (!existing) {
       return null;
+    }
+
+    // Get all locations for this company to find the first one
+    const allLocations = await db
+      .selectFrom("locations")
+      .selectAll()
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .orderBy("created_at", "asc")
+      .orderBy("name", "asc")
+      .execute();
+
+    // Prevent unsetting free status on the first location
+    if (allLocations.length > 0 && allLocations[0].id === id && !isFree) {
+      throw new Error("The first location must always be free");
     }
 
     const updated = await db

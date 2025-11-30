@@ -54,15 +54,59 @@ function toCompany(company: {
 }
 
 export class CompanyService {
-  async findAll(): Promise<Company[]> {
-    const companies = await db
+  async findAll(options?: { page?: number; limit?: number; search?: string }): Promise<{
+    data: Company[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 50;
+    const offset = (page - 1) * limit;
+    const searchQuery = options?.search;
+
+    // Build base query for counting and fetching
+    let countQuery = db
+      .selectFrom("companies")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .where("deleted_at", "is", null);
+
+    let dataQuery = db
       .selectFrom("companies")
       .selectAll()
-      .where("deleted_at", "is", null)
+      .where("deleted_at", "is", null);
+
+    // Apply search filter if provided
+    if (searchQuery) {
+      const search = `%${searchQuery.toLowerCase()}%`;
+      countQuery = countQuery.where("name", "ilike", search);
+      dataQuery = dataQuery.where("name", "ilike", search);
+    }
+
+    // Get total count
+    const totalResult = await countQuery.executeTakeFirst();
+    const total = Number(totalResult?.count || 0);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get paginated companies
+    const companies = await dataQuery
       .orderBy("created_at", "desc")
+      .limit(limit)
+      .offset(offset)
       .execute();
 
-    return companies.map(toCompany);
+    return {
+      data: companies.map(toCompany),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   async findById(id: string): Promise<Company | null> {

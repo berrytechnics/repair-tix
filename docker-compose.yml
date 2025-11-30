@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: repair-forge-db
+    container_name: repair-tix-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-repair_admin}
@@ -32,7 +32,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: repair-forge-api
+    container_name: repair-tix-api
     restart: always
     depends_on:
       postgres:
@@ -65,7 +65,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: repair-forge-client
+    container_name: repair-tix-client
     restart: always
     depends_on:
       - backend

@@ -20,7 +20,7 @@ function getEncryptionKey(): Buffer {
   // Using PBKDF2 for key derivation with a fixed salt
   return crypto.pbkdf2Sync(
     key,
-    'circuit-sage-salt', // Fixed salt for key derivation
+    'repair-tix-salt', // Fixed salt for key derivation
     PBKDF2_ITERATIONS,
     KEY_LENGTH,
     'sha256'

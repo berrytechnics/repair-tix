@@ -66,11 +66,28 @@ export async function requireLocationContext(
 
     const currentLocationId = user.current_location_id as unknown as string | undefined;
 
-    // For superusers impersonating, allow bypass if no current_location_id is set
+    // For superusers impersonating, always bypass location checks
     // They can access any location in the impersonated company
-    if (user.role === "superuser" && !currentLocationId) {
-      // Superuser impersonating without a specific location - allow access
+    if (user.role === "superuser") {
+      // Superuser impersonating - allow access without location restrictions
       // Services should handle the case where locationId is undefined
+      // If they have a current_location_id, we can optionally set it, but don't require it
+      if (currentLocationId) {
+        // Verify the location belongs to the impersonated company
+        const location = await db
+          .selectFrom("locations")
+          .select("id")
+          .where("id", "=", currentLocationId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+        
+        if (location) {
+          req.locationId = currentLocationId;
+        }
+        // If location doesn't belong to company, just don't set locationId
+        // Superuser can still proceed without it
+      }
       return next();
     }
 
@@ -117,6 +134,25 @@ export async function optionalLocationContext(
     }
 
     const currentLocationId = user.current_location_id as unknown as string | undefined;
+
+    // For superusers impersonating, always bypass location checks
+    if (user.role === "superuser") {
+      if (currentLocationId) {
+        // Verify the location belongs to the impersonated company
+        const location = await db
+          .selectFrom("locations")
+          .select("id")
+          .where("id", "=", currentLocationId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+        
+        if (location) {
+          req.locationId = currentLocationId;
+        }
+      }
+      return next();
+    }
 
     if (currentLocationId) {
       // Check if user has access to this location

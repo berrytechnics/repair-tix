@@ -51,5 +51,5 @@
   <line x1="235" y1="175" x2="240" y2="175" stroke="#00C49A" stroke-width="2" />
   
   <!-- Text -->
-  <text x="200" y="225" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">CIRCUIT SAGE</text>
+  <text x="200" y="225" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">REPAIRTIX</text>
 </svg>

@@ -99,7 +99,7 @@ export class PayPalAdapter {
           },
         ],
         application_context: {
-          brand_name: 'Circuit Sage',
+          brand_name: 'RepairTix',
           landing_page: 'NO_PREFERENCE',
           user_action: 'PAY_NOW',
           return_url: `${config.settings?.webhookUrl || ''}/paypal/return`,

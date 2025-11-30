@@ -13,11 +13,36 @@ export interface Company {
   updatedAt: Date;
 }
 
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  pagination: PaginationInfo;
+  error?: { message: string };
+}
+
 /**
- * Get all companies (superuser only)
+ * Get all companies with pagination and search (superuser only)
  */
-export const getCompanies = async (): Promise<ApiResponse<Company[]>> => {
-  const response = await api.get<ApiResponse<Company[]>>("/companies");
+export const getCompanies = async (
+  page: number = 1,
+  limit: number = 50,
+  search?: string
+): Promise<PaginatedResponse<Company>> => {
+  const params: Record<string, string | number> = { page, limit };
+  if (search) {
+    params.search = search;
+  }
+
+  const response = await api.get<PaginatedResponse<Company>>("/companies", {
+    params,
+  });
 
   if (response.data.success) {
     return response.data;

@@ -86,9 +86,9 @@ function isDockerRunning() {
   try {
     const output = execSync("docker ps", { stdio: "pipe" });
     return (
-      output.toString().includes("repair-forge-api") ||
-      output.toString().includes("repair-forge-db") ||
-      output.toString().includes("repair-forge-client")
+      output.toString().includes("repair-tix-api") ||
+      output.toString().includes("repair-tix-db") ||
+      output.toString().includes("repair-tix-client")
     );
   } catch (error) {
     return false;
@@ -212,12 +212,12 @@ program
     "after",
     `
   Examples:
-    $ repair-forge db:migrate         # Run all pending migrations
-    $ repair-forge db:migrate:undo    # Undo the last migration
-    $ repair-forge db:reset           # Reset the database (undo all, then migrate)
-    $ repair-forge db:seed            # Seed the database
-    $ repair-forge db:backup          # Create a database backup
-    $ repair-forge db:restore <file>  # Restore database from backup
+    $ repair-tix db:migrate         # Run all pending migrations
+    $ repair-tix db:migrate:undo    # Undo the last migration
+    $ repair-tix db:reset           # Reset the database (undo all, then migrate)
+    $ repair-tix db:seed            # Seed the database
+    $ repair-tix db:backup          # Create a database backup
+    $ repair-tix db:restore <file>  # Restore database from backup
   `
   );
 
@@ -225,9 +225,9 @@ program
   .command("db:migrate")
   .description("Run database migrations")
   .action(() => {
-    if (isContainerRunning("repair-forge-api")) {
+    if (isContainerRunning("repair-tix-api")) {
       log("Running migrations inside Docker container...", "green");
-      executeCommand("docker exec repair-forge-api npx sequelize-cli db:migrate");
+      executeCommand("docker exec repair-tix-api npx sequelize-cli db:migrate");
     } else {
       log("Running migrations locally...", "green");
       executeCommand("npx sequelize-cli db:migrate", {
@@ -243,9 +243,9 @@ program
   .action((options) => {
     const command = options.all ? "db:migrate:undo:all" : "db:migrate:undo";
 
-    if (isContainerRunning("repair-forge-api")) {
+    if (isContainerRunning("repair-tix-api")) {
       log(`Undoing migrations inside Docker container...`, "green");
-      executeCommand(`docker exec repair-forge-api npx sequelize-cli ${command}`);
+      executeCommand(`docker exec repair-tix-api npx sequelize-cli ${command}`);
     } else {
       log(`Undoing migrations locally...`, "green");
       executeCommand(`npx sequelize-cli ${command}`, {
@@ -260,11 +260,11 @@ program
   .action(() => {
     log("Resetting database...", "yellow");
 
-    if (isContainerRunning("repair-forge-api")) {
+    if (isContainerRunning("repair-tix-api")) {
       executeCommand(
-        "docker exec repair-forge-api npx sequelize-cli db:migrate:undo:all"
+        "docker exec repair-tix-api npx sequelize-cli db:migrate:undo:all"
       );
-      executeCommand("docker exec repair-forge-api npx sequelize-cli db:migrate");
+      executeCommand("docker exec repair-tix-api npx sequelize-cli db:migrate");
       log("Database reset complete!", "green");
     } else {
       executeCommand("npx sequelize-cli db:migrate:undo:all", {
@@ -284,14 +284,14 @@ program
   .action((options) => {
     const command = options.undo ? "db:seed:undo:all" : "db:seed:all";
 
-    if (isContainerRunning("repair-forge-api")) {
+    if (isContainerRunning("repair-tix-api")) {
       log(
         `${
           options.undo ? "Undoing" : "Running"
         } seeds inside Docker container...`,
         "green"
       );
-      executeCommand(`docker exec repair-forge-api npx sequelize-cli ${command}`);
+      executeCommand(`docker exec repair-tix-api npx sequelize-cli ${command}`);
     } else {
       log(`${options.undo ? "Undoing" : "Running"} seeds locally...`, "green");
       executeCommand(`npx sequelize-cli ${command}`, {
@@ -317,9 +317,9 @@ program
   .option("-t, --tail <number>", "Number of lines to show from the end", "100")
   .action((options) => {
     const services = {
-      backend: "repair-forge-api",
-      frontend: "repair-forge-client",
-      db: "repair-forge-db",
+      backend: "repair-tix-api",
+      frontend: "repair-tix-client",
+      db: "repair-tix-db",
     };
 
     if (options.service && !services[options.service]) {
@@ -349,9 +349,9 @@ program
   .action((options) => {
     if (options.service) {
       const services = {
-        backend: "repair-forge-api",
-        frontend: "repair-forge-client",
-        db: "repair-forge-db",
+        backend: "repair-tix-api",
+        frontend: "repair-tix-client",
+        db: "repair-tix-db",
       };
 
       if (!services[options.service]) {
@@ -376,9 +376,9 @@ program
   .option("-s, --service <service>", "Service to access (backend, frontend, db)", "backend")
   .action((options) => {
     const services = {
-      backend: "repair-forge-api",
-      frontend: "repair-forge-client",
-      db: "repair-forge-db",
+      backend: "repair-tix-api",
+      frontend: "repair-tix-client",
+      db: "repair-tix-db",
     };
 
     if (!services[options.service]) {
@@ -412,9 +412,9 @@ program
     log("Checking service health...", "blue");
 
     const services = {
-      "repair-forge-db": "Database",
-      "repair-forge-api": "Backend API",
-      "repair-forge-client": "Frontend",
+      "repair-tix-db": "Database",
+      "repair-tix-api": "Backend API",
+      "repair-tix-client": "Frontend",
     };
 
     let allHealthy = true;
@@ -485,9 +485,9 @@ program
       ? "yarn test:coverage"
       : "yarn test";
 
-    if (isContainerRunning("repair-forge-api")) {
+    if (isContainerRunning("repair-tix-api")) {
       log("Running tests inside Docker container...", "green");
-      executeCommand(`docker exec repair-forge-api ${testCommand}`);
+      executeCommand(`docker exec repair-tix-api ${testCommand}`);
     } else {
       log("Running tests locally...", "green");
       executeCommand(testCommand, {
@@ -551,8 +551,8 @@ program
             executeCommand(commands[options.type], {
               cwd: path.join(process.cwd(), "backend"),
             });
-          } else if (isContainerRunning("repair-forge-api")) {
-            executeCommand(`docker exec repair-forge-api ${commands[options.type]}`);
+          } else if (isContainerRunning("repair-tix-api")) {
+            executeCommand(`docker exec repair-tix-api ${commands[options.type]}`);
           } else {
             executeCommand(commands[options.type], {
               cwd: path.join(process.cwd(), "backend"),
@@ -590,8 +590,8 @@ program
             executeCommand(check.cmd, {
               cwd: path.join(process.cwd(), "backend"),
             });
-          } else if (isContainerRunning("repair-forge-api")) {
-            executeCommand(`docker exec repair-forge-api ${check.cmd}`);
+          } else if (isContainerRunning("repair-tix-api")) {
+            executeCommand(`docker exec repair-tix-api ${check.cmd}`);
           } else {
             executeCommand(check.cmd, {
               cwd: path.join(process.cwd(), "backend"),
@@ -640,7 +640,7 @@ program
   .action((options) => {
     log("Creating database backup...", "green");
 
-    if (!isContainerRunning("repair-forge-db")) {
+    if (!isContainerRunning("repair-tix-db")) {
       log("Database container is not running", "red");
       process.exit(1);
     }
@@ -652,7 +652,7 @@ program
 
     try {
       const output = execSync(
-        `docker exec repair-forge-db pg_dump -U ${dbUser} ${dbName}`,
+        `docker exec repair-tix-db pg_dump -U ${dbUser} ${dbName}`,
         { stdio: "pipe" }
       );
       fs.writeFileSync(backupFile, output);
@@ -675,7 +675,7 @@ program
       process.exit(1);
     }
 
-    if (!isContainerRunning("repair-forge-db")) {
+    if (!isContainerRunning("repair-tix-db")) {
       log("Database container is not running", "red");
       process.exit(1);
     }
@@ -689,13 +689,13 @@ program
     try {
       // Copy backup file into container and restore
       const tempFile = `/tmp/restore-${Date.now()}.sql`;
-      execSync(`docker cp ${backupPath} repair-forge-db:${tempFile}`, {
+      execSync(`docker cp ${backupPath} repair-tix-db:${tempFile}`, {
         stdio: "inherit",
       });
       executeCommand(
-        `docker exec repair-forge-db psql -U ${dbUser} ${dbName} -f ${tempFile}`
+        `docker exec repair-tix-db psql -U ${dbUser} ${dbName} -f ${tempFile}`
       );
-      executeCommand(`docker exec repair-forge-db rm ${tempFile}`, {
+      executeCommand(`docker exec repair-tix-db rm ${tempFile}`, {
         ignoreError: true,
       });
       log("Database restored!", "green");

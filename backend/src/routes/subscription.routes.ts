@@ -1,6 +1,5 @@
 // src/routes/subscription.routes.ts
 import express, { Request, Response } from "express";
-import { NotFoundError } from "../config/errors.js";
 import { validateRequest } from "../middlewares/auth.middleware.js";
 import { requireTenantContext } from "../middlewares/tenant.middleware.js";
 import { requireAdmin } from "../middlewares/rbac.middleware.js";
@@ -8,7 +7,6 @@ import { validate } from "../middlewares/validation.middleware.js";
 import billingService from "../services/billing.service.js";
 import {
   enableAutopayValidation,
-  toggleLocationFreeValidation,
 } from "../validators/subscription.validator.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 

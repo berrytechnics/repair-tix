@@ -2,7 +2,7 @@
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection.js";
-import { SubscriptionTable, SubscriptionPaymentTable, SubscriptionStatus } from "../config/types.js";
+import { SubscriptionTable, SubscriptionStatus } from "../config/types.js";
 import logger from "../config/logger.js";
 import squareAdapter from "../integrations/payment/square.adapter.js";
 import { PaymentIntegrationConfig } from "../config/integrations.js";
@@ -19,7 +19,6 @@ import {
 const BILLING_AMOUNT_PER_LOCATION = parseFloat(
   process.env.BILLING_AMOUNT_PER_LOCATION || "50"
 );
-const BILLING_CURRENCY = process.env.BILLING_CURRENCY || "USD";
 const BILLING_DAY_OF_MONTH = parseInt(
   process.env.BILLING_DAY_OF_MONTH || "1",
   10
@@ -109,7 +108,6 @@ export class BillingService {
 
     const billableCount = Number(locations?.billable_count || 0);
     const freeCount = Number(locations?.free_count || 0);
-    const totalCount = Number(locations?.total_count || 0);
     const amount = billableCount * BILLING_AMOUNT_PER_LOCATION;
 
     return {
@@ -169,7 +167,7 @@ export class BillingService {
     }
 
     // Calculate monthly amount
-    const { amount, locationCount } = await this.calculateMonthlyAmount(
+    const { amount } = await this.calculateMonthlyAmount(
       companyId
     );
 

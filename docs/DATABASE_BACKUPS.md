@@ -1,6 +1,6 @@
 # Database Backup and Restore Guide
 
-This guide covers database backup and restore procedures for RepairForge.
+This guide covers database backup and restore procedures for RepairTix.
 
 ## Overview
 
@@ -43,14 +43,14 @@ Create a backup script (`backend/scripts/backup-db.sh`):
 
 ```bash
 #!/bin/bash
-# Database backup script for RepairForge
+# Database backup script for RepairTix
 # Usage: ./backup-db.sh [backup-dir]
 
 set -e
 
 BACKUP_DIR=${1:-./backups}
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/repair-forge-backup-$TIMESTAMP.sql"
+BACKUP_FILE="$BACKUP_DIR/repair-tix-backup-$TIMESTAMP.sql"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
@@ -88,7 +88,7 @@ echo "Backup completed: ${BACKUP_FILE}"
 echo "Backup size: $(du -h "${BACKUP_FILE}" | cut -f1)"
 
 # Keep only last 30 days of backups
-find "$BACKUP_DIR" -name "repair-forge-backup-*.sql.gz" -mtime +30 -delete
+find "$BACKUP_DIR" -name "repair-tix-backup-*.sql.gz" -mtime +30 -delete
 
 echo "Old backups cleaned (kept last 30 days)"
 ```
@@ -100,7 +100,7 @@ Set up automated daily backups:
 ```bash
 # Add to crontab (crontab -e)
 # Run daily at 2 AM
-0 2 * * * /path/to/repair-forge/backend/scripts/backup-db.sh /path/to/backups >> /var/log/repair-forge-backup.log 2>&1
+0 2 * * * /path/to/repair-tix/backend/scripts/backup-db.sh /path/to/backups >> /var/log/repair-tix-backup.log 2>&1
 ```
 
 ## Manual Backup Procedures
@@ -131,7 +131,7 @@ gzip backup-$(date +%Y%m%d).sql
 
 ```bash
 # Backup from Docker container
-docker exec repair-forge-db pg_dump \
+docker exec repair-tix-db pg_dump \
   -U repair_admin \
   -d repair_business \
   --clean \
@@ -180,7 +180,7 @@ gunzip < backup-20240101.sql.gz | psql \
 
 ```bash
 # Restore to Docker container
-docker exec -i repair-forge-db psql \
+docker exec -i repair-tix-db psql \
   -U repair_admin \
   -d repair_business < backup-20240101.sql
 ```

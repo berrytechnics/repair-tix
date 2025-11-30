@@ -11,7 +11,7 @@ export default function Home() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
-                Circuit Sage
+                RepairTix
               </div>
             </div>
             <nav className="flex items-center space-x-4">
@@ -178,7 +178,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Why Choose Circuit Sage?
+                Why Choose RepairTix?
               </h2>
               <p className="text-xl text-gray-600 dark:text-gray-400">
                 Built by repair technicians, for repair technicians
@@ -235,7 +235,7 @@ export default function Home() {
                     Scale with Your Business
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Whether you're a single-location shop or a multi-location operation, Circuit Sage grows with you. Add locations, users, and features as needed.
+                    Whether you're a single-location shop or a multi-location operation, RepairTix grows with you. Add locations, users, and features as needed.
                   </p>
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function Home() {
               Ready to Transform Your Repair Business?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join repair shops that are already streamlining their operations with Circuit Sage.
+              Join repair shops that are already streamlining their operations with RepairTix.
             </p>
             <Link
               href="/register"
@@ -290,7 +290,7 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="text-xl font-bold text-white mb-4">Circuit Sage</div>
+              <div className="text-xl font-bold text-white mb-4">RepairTix</div>
               <p className="text-sm">
                 The complete management solution for electronics repair businesses.
               </p>
@@ -352,7 +352,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>&copy; {new Date().getFullYear()} Circuit Sage. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} RepairTix. All rights reserved.</p>
           </div>
         </div>
       </footer>
