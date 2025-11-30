@@ -27,10 +27,17 @@ import userRoutes from "./routes/user.routes.js";
 const app: Express = express();
 
 // CORS configuration - restrict origins in production
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()).filter(Boolean) || []
+  : true; // Allow all origins in development
+
+// Log allowed origins in production for debugging
+if (process.env.NODE_ENV === "production") {
+  logger.info("CORS allowed origins:", allowedOrigins);
+}
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === "production"
-    ? process.env.ALLOWED_ORIGINS?.split(",") || []
-    : true, // Allow all origins in development
+  origin: allowedOrigins,
   credentials: true,
   optionsSuccessStatus: 200,
 };
