@@ -1,21 +1,21 @@
 import express, { Request, Response } from "express";
 import {
-  BadRequestError,
-  NotFoundError,
-  UnauthorizedError,
+    BadRequestError,
+    NotFoundError,
+    UnauthorizedError,
 } from "../config/errors.js";
 import { getPermissionsForRole, getPermissionsMatrix } from "../config/permissions.js";
 import { UserRole } from "../config/types.js";
-import permissionService from "../services/permission.service.js";
 import { validateRequest } from "../middlewares/auth.middleware.js";
+import { authLimiter, sensitiveOperationLimiter } from "../middlewares/rate-limit.middleware.js";
 import { requireAdmin, requireRole } from "../middlewares/rbac.middleware.js";
 import { requireTenantContext } from "../middlewares/tenant.middleware.js";
 import { validate } from "../middlewares/validation.middleware.js";
-import { authLimiter, sensitiveOperationLimiter } from "../middlewares/rate-limit.middleware.js";
 import companyService from "../services/company.service.js";
 import invitationService from "../services/invitation.service.js";
 import locationService from "../services/location.service.js";
-import userService, { UserWithoutPassword, UpdateUserDto } from "../services/user.service.js";
+import permissionService from "../services/permission.service.js";
+import userService, { UpdateUserDto, UserWithoutPassword } from "../services/user.service.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateNewJWTToken, generateRefreshToken, verifyRefreshToken } from "../utils/auth.js";
 import { loginValidation, registerValidation } from "../validators/user.validator.js";
