@@ -97,15 +97,34 @@ sudo certbot certonly --standalone \
     echo -e "${YELLOW}Continuing without SSL for now...${NC}"
 }
 
-# Update nginx config with SSL paths
+# Update nginx config with SSL - uncomment HTTPS server block and enable redirect
 if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then
-    sudo sed -i "s|# ssl_certificate|ssl_certificate|g" /etc/nginx/sites-available/circuit-sage
-    sudo sed -i "s|# ssl_certificate_key|ssl_certificate_key|g" /etc/nginx/sites-available/circuit-sage
+    # Replace domain placeholder in SSL certificate paths
+    sudo sed -i "s|yourdomain.com|$DOMAIN_NAME|g" /etc/nginx/sites-available/circuit-sage
+    
+    # Uncomment HTTPS server block (remove leading # and spaces from commented lines)
+    sudo sed -i '/^# server {$/,/^# }$/s/^# //' /etc/nginx/sites-available/circuit-sage
+    sudo sed -i '/^#     /s/^#     /    /' /etc/nginx/sites-available/circuit-sage
+    sudo sed -i '/^#    /s/^#    /   /' /etc/nginx/sites-available/circuit-sage
+    
+    # Comment out HTTP proxy_pass sections
+    sudo sed -i '/^    location \/ {$/,/^    }$/s/^    /    # /' /etc/nginx/sites-available/circuit-sage
+    sudo sed -i '/^    location \/api {$/,/^    }$/s/^    /    # /' /etc/nginx/sites-available/circuit-sage
+    
+    # Uncomment redirect locations
+    sudo sed -i 's|#     return 301|    return 301|' /etc/nginx/sites-available/circuit-sage
+    
+    # Test configuration
+    if ! sudo nginx -t; then
+        echo -e "${YELLOW}Warning: Nginx config test failed after SSL setup. Manual fix may be needed.${NC}"
+    fi
+    
     echo -e "${GREEN}SSL certificate configured successfully${NC}"
 else
     echo -e "${YELLOW}SSL certificate not found. Using HTTP only for now.${NC}"
     echo -e "${YELLOW}You can set up SSL later by running:${NC}"
-    echo -e "${YELLOW}  sudo certbot --nginx -d $DOMAIN_NAME${NC}"
+    echo -e "${YELLOW}  sudo certbot certonly --standalone -d $DOMAIN_NAME${NC}"
+    echo -e "${YELLOW}  Then manually update /etc/nginx/sites-available/circuit-sage${NC}"
 fi
 
 # Start nginx
