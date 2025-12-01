@@ -163,6 +163,40 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 /**
+ * Check if a table exists in the database
+ */
+async function tableExists(client: any, tableName: string): Promise<boolean> {
+  try {
+    const result = await client.query(
+      `SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = $1
+      )`,
+      [tableName]
+    );
+    return result.rows[0].exists;
+  } catch (error: any) {
+    console.error(`Error checking if table ${tableName} exists:`, error);
+    return false;
+  }
+}
+
+/**
+ * Extract table names referenced in foreign key constraints from SQL
+ */
+function extractReferencedTables(sql: string): string[] {
+  const tables: Set<string> = new Set();
+  // Match patterns like REFERENCES table_name(column) or REFERENCES schema.table_name(column)
+  const fkPattern = /REFERENCES\s+(?:[\w.]+\.)?(\w+)\s*\(/gi;
+  let match;
+  while ((match = fkPattern.exec(sql)) !== null) {
+    tables.add(match[1].toLowerCase());
+  }
+  return Array.from(tables);
+}
+
+/**
  * Check if migration has already been applied
  */
 async function isMigrationApplied(client: any, filename: string): Promise<boolean> {
@@ -240,6 +274,16 @@ async function runMigrations() {
     
     console.log(`Found ${files.length} migration files`);
     
+    // Verify schema_migrations table exists (should be created by base schema)
+    const trackingTableExists = await tableExists(client, "schema_migrations");
+    if (!trackingTableExists) {
+      console.log("⚠ Migration tracking table (schema_migrations) not found");
+      console.log("  It should be created by the base schema migration.");
+      console.log("  Migrations will still run, but tracking may not work until the table is created.");
+    } else {
+      console.log("✓ Migration tracking table found");
+    }
+    
     let appliedCount = 0;
     let skippedCount = 0;
     
@@ -253,116 +297,76 @@ async function runMigrations() {
       const alreadyApplied = await isMigrationApplied(client, file);
       
       if (alreadyApplied) {
-        console.log(`⚠ Migration ${file} already applied, skipping`);
+        console.log(`✓ Migration ${file} already applied, skipping`);
         skippedCount++;
         continue;
       }
       
       console.log(`Running migration: ${file}`);
+      
+      // Check for missing table dependencies before running migration
+      const referencedTables = extractReferencedTables(sql);
+      if (referencedTables.length > 0) {
+        const missingTables: string[] = [];
+        for (const table of referencedTables) {
+          const exists = await tableExists(client, table);
+          if (!exists) {
+            missingTables.push(table);
+          }
+        }
+        
+        if (missingTables.length > 0) {
+          console.error(`✗ Migration ${file} failed: Missing required tables: ${missingTables.join(', ')}`);
+          console.error(`  This migration references tables that don't exist yet.`);
+          console.error(`  Ensure prerequisite migrations have run successfully.`);
+          throw new Error(`Missing required tables: ${missingTables.join(', ')}`);
+        }
+      }
+      
       const startTime = Date.now();
       
       try {
         await client.query("BEGIN");
         
-        // Try executing the entire SQL file first (PostgreSQL supports multiple statements)
-        // If that fails, fall back to splitting statements
-        let statementCount = 0;
-        try {
-          await client.query(sql);
-          // Count statements for logging (approximate)
-          statementCount = sql.split(';').filter(s => s.trim().length > 0).length;
-        } catch (error: any) {
-          // If direct execution fails, rollback and try splitting into statements
-          console.log(`\n  ⚠ Direct execution failed for migration ${file}`);
-          console.log(`  Error message: ${error.message || String(error)}`);
-          
-          // Log PostgreSQL-specific error properties
-          if (error.code) {
-            console.log(`  PostgreSQL error code: ${error.code}`);
-          }
-          if (error.severity) {
-            console.log(`  Severity: ${error.severity}`);
-          }
-          if (error.detail) {
-            console.log(`  Detail: ${error.detail}`);
-          }
-          if (error.hint) {
-            console.log(`  Hint: ${error.hint}`);
-          }
-          if (error.position) {
-            console.log(`  Position: ${error.position}`);
-            // Show context around the error position
-            const pos = parseInt(error.position, 10);
-            if (pos > 0 && pos < sql.length) {
-              const start = Math.max(0, pos - 50);
-              const end = Math.min(sql.length, pos + 50);
-              const context = sql.substring(start, end).replace(/\n/g, '\\n');
-              console.log(`  SQL context around position: ...${context}...`);
-            }
-          }
-          
-          // Log full error object (for debugging)
-          try {
-            const errorDetails = {
-              name: error.name,
-              message: error.message,
-              code: error.code,
-              severity: error.severity,
-              detail: error.detail,
-              hint: error.hint,
-              position: error.position,
-              internalPosition: error.internalPosition,
-              internalQuery: error.internalQuery,
-              where: error.where,
-              schema: error.schema,
-              table: error.table,
-              column: error.column,
-              dataType: error.dataType,
-              constraint: error.constraint,
-              file: error.file,
-              line: error.line,
-              routine: error.routine,
-            };
-            console.log(`  Full error details:`, JSON.stringify(errorDetails, null, 2));
-          } catch (jsonError) {
-            console.log(`  Could not stringify error object: ${jsonError}`);
-          }
-          
-          // Log stack trace
-          if (error.stack) {
-            console.log(`  Stack trace:\n${error.stack}`);
-          }
-          
-          // Log SQL preview (first 500 chars)
-          const sqlPreview = sql.substring(0, 500).replace(/\n/g, '\\n');
-          console.log(`  SQL preview (first 500 chars): ${sqlPreview}...`);
-          console.log(`  Total SQL length: ${sql.length} characters`);
-          
-          console.log(`  Rolling back and splitting into statements...`);
-          await client.query("ROLLBACK");
-          await client.query("BEGIN");
-          
-          const statements = splitSqlStatements(sql);
-          statementCount = statements.length;
-          
-          for (let i = 0; i < statements.length; i++) {
-            const statement = statements[i].trim();
-            if (statement) {
-              try {
-                await client.query(statement);
-              } catch (stmtError: any) {
-                // Provide context about which statement failed
-                const statementPreview = statement.substring(0, 100).replace(/\n/g, ' ');
-                console.error(`✗ Statement ${i + 1}/${statements.length} failed in migration ${file}:`);
-                console.error(`  Preview: ${statementPreview}...`);
-                console.error(`  Full statement length: ${statement.length} chars`);
-                if (statement.length < 1000) {
-                  console.error(`  Full statement:\n${statement}`);
-                } else {
-                  console.error(`  Full statement (first 500 chars):\n${statement.substring(0, 500)}...`);
+        // Always split SQL into statements and execute one by one
+        // The pg library doesn't reliably support multiple statements in a single query
+        const statements = splitSqlStatements(sql);
+        const statementCount = statements.length;
+        
+        console.log(`  Executing ${statementCount} SQL statement(s)...`);
+        
+        for (let i = 0; i < statements.length; i++) {
+          const statement = statements[i].trim();
+          if (statement) {
+            try {
+              await client.query(statement);
+            } catch (stmtError: any) {
+              // Provide context about which statement failed
+              const statementPreview = statement.substring(0, 100).replace(/\n/g, ' ');
+              console.error(`✗ Statement ${i + 1}/${statements.length} failed in migration ${file}:`);
+              console.error(`  Preview: ${statementPreview}...`);
+              console.error(`  Full statement length: ${statement.length} chars`);
+              
+              // Enhanced error message for missing relation errors
+              if (stmtError?.code === "42P01") {
+                const relationMatch = stmtError.message.match(/relation "(\w+)" does not exist/);
+                if (relationMatch) {
+                  const missingRelation = relationMatch[1];
+                  console.error(`  ERROR: Table or relation "${missingRelation}" does not exist`);
+                  console.error(`  This suggests a dependency issue - ensure prerequisite migrations have run.`);
+                  
+                  // Check if it's a table we can verify
+                  const exists = await tableExists(client, missingRelation);
+                  console.error(`  Verification: Table "${missingRelation}" exists: ${exists}`);
                 }
-                throw stmtError;
               }
+              
+              if (statement.length < 1000) {
+                console.error(`  Full statement:\n${statement}`);
+              } else {
+                console.error(`  Full statement (first 500 chars):\n${statement.substring(0, 500)}...`);
+              }
+              throw stmtError;
             }
           }
         }
@@ -387,14 +391,37 @@ async function runMigrations() {
           (error?.code === "23505") || // Unique constraint violation (duplicate key)
           (error?.code === "42P07"); // Duplicate table/relation
         
+        // Handle missing relation errors with better context
+        const isMissingRelationError = error?.code === "42P01";
+        
         if (isIdempotentError) {
           console.log(`⚠ Migration ${file} skipped (idempotent error - may already be applied)`);
           // Still record it to prevent future attempts
           const executionTime = Date.now() - startTime;
           await recordMigration(client, file, checksum, executionTime);
           skippedCount++;
+        } else if (isMissingRelationError) {
+          // Missing relation error - provide detailed context
+          const relationMatch = error.message?.match(/relation "(\w+)" does not exist/);
+          if (relationMatch) {
+            const missingRelation = relationMatch[1];
+            console.error(`✗ Migration ${file} failed: Table "${missingRelation}" does not exist`);
+            console.error(`  This is a dependency error. The migration references a table that hasn't been created yet.`);
+            console.error(`  Possible causes:`);
+            console.error(`    1. Prerequisite migrations haven't run successfully`);
+            console.error(`    2. Migration order is incorrect`);
+            console.error(`    3. Previous migration failed partway through`);
+            console.error(`  Check migration logs above to see which migrations completed successfully.`);
+          } else {
+            console.error(`✗ Migration ${file} failed: Missing relation (table/view)`, error);
+          }
+          throw error;
         } else {
           console.error(`✗ Migration ${file} failed:`, error);
+          if (error instanceof Error) {
+            console.error(`  Error code: ${(error as any).code || 'N/A'}`);
+            console.error(`  Error message: ${error.message}`);
+          }
           throw error;
         }
       }
