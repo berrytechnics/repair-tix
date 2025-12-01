@@ -273,7 +273,71 @@ async function runMigrations() {
           statementCount = sql.split(';').filter(s => s.trim().length > 0).length;
         } catch (error: any) {
           // If direct execution fails, rollback and try splitting into statements
-          console.log(`  Direct execution failed: ${error.message || error}`);
+          console.log(`\n  ⚠ Direct execution failed for migration ${file}`);
+          console.log(`  Error message: ${error.message || String(error)}`);
+          
+          // Log PostgreSQL-specific error properties
+          if (error.code) {
+            console.log(`  PostgreSQL error code: ${error.code}`);
+          }
+          if (error.severity) {
+            console.log(`  Severity: ${error.severity}`);
+          }
+          if (error.detail) {
+            console.log(`  Detail: ${error.detail}`);
+          }
+          if (error.hint) {
+            console.log(`  Hint: ${error.hint}`);
+          }
+          if (error.position) {
+            console.log(`  Position: ${error.position}`);
+            // Show context around the error position
+            const pos = parseInt(error.position, 10);
+            if (pos > 0 && pos < sql.length) {
+              const start = Math.max(0, pos - 50);
+              const end = Math.min(sql.length, pos + 50);
+              const context = sql.substring(start, end).replace(/\n/g, '\\n');
+              console.log(`  SQL context around position: ...${context}...`);
+            }
+          }
+          
+          // Log full error object (for debugging)
+          try {
+            const errorDetails = {
+              name: error.name,
+              message: error.message,
+              code: error.code,
+              severity: error.severity,
+              detail: error.detail,
+              hint: error.hint,
+              position: error.position,
+              internalPosition: error.internalPosition,
+              internalQuery: error.internalQuery,
+              where: error.where,
+              schema: error.schema,
+              table: error.table,
+              column: error.column,
+              dataType: error.dataType,
+              constraint: error.constraint,
+              file: error.file,
+              line: error.line,
+              routine: error.routine,
+            };
+            console.log(`  Full error details:`, JSON.stringify(errorDetails, null, 2));
+          } catch (jsonError) {
+            console.log(`  Could not stringify error object: ${jsonError}`);
+          }
+          
+          // Log stack trace
+          if (error.stack) {
+            console.log(`  Stack trace:\n${error.stack}`);
+          }
+          
+          // Log SQL preview (first 500 chars)
+          const sqlPreview = sql.substring(0, 500).replace(/\n/g, '\\n');
+          console.log(`  SQL preview (first 500 chars): ${sqlPreview}...`);
+          console.log(`  Total SQL length: ${sql.length} characters`);
+          
           console.log(`  Rolling back and splitting into statements...`);
           await client.query("ROLLBACK");
           await client.query("BEGIN");
