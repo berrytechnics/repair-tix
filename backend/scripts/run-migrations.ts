@@ -114,6 +114,8 @@ function splitSqlStatements(sql: string): string[] {
         inString = true;
         stringChar = char;
         currentStatement += char;
+        i++;
+        continue;
       } else if (inString && char === stringChar) {
         // Check for PostgreSQL escape sequence: '' (double single quote) for single quotes
         // or escaped quote with backslash for double quotes
@@ -125,11 +127,15 @@ function splitSqlStatements(sql: string): string[] {
         } else if (stringChar === '"' && i > 0 && withoutComments[i - 1] === '\\') {
           // Escaped double quote - add it and continue in string
           currentStatement += char;
+          i++;
+          continue;
         } else {
           // This is the closing quote
           inString = false;
           stringChar = '';
           currentStatement += char;
+          i++;
+          continue;
         }
       } else if (!inString && char === ';') {
         const trimmed = currentStatement.trim();
@@ -142,6 +148,7 @@ function splitSqlStatements(sql: string): string[] {
       }
     }
     
+    // Add character to current statement (only if not handled above)
     currentStatement += char;
     i++;
   }
