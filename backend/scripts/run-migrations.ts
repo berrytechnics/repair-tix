@@ -183,6 +183,67 @@ async function tableExists(client: any, tableName: string): Promise<boolean> {
 }
 
 /**
+ * Verify that expected tables exist after migration
+ * This ensures transactions actually persisted
+ */
+async function verifyMigrationPersisted(
+  client: any,
+  migrationFile: string,
+  expectedTables: string[]
+): Promise<void> {
+  const missingTables: string[] = [];
+  
+  for (const table of expectedTables) {
+    const exists = await tableExists(client, table);
+    if (!exists) {
+      missingTables.push(table);
+    }
+  }
+  
+  if (missingTables.length > 0) {
+    throw new Error(
+      `Migration ${migrationFile} reported success but tables were not created: ${missingTables.join(', ')}. ` +
+      `This indicates the transaction did not persist properly.`
+    );
+  }
+}
+
+/**
+ * Get expected tables from migration SQL
+ */
+function getExpectedTables(sql: string, migrationFile: string): string[] {
+  const tables: string[] = [];
+  
+  // Extract CREATE TABLE statements
+  const createTablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi;
+  let match;
+  while ((match = createTablePattern.exec(sql)) !== null) {
+    tables.push(match[1].toLowerCase());
+  }
+  
+  // Special case: base schema should create schema_migrations
+  if (migrationFile.includes('base-schema')) {
+    if (!tables.includes('schema_migrations')) {
+      tables.push('schema_migrations');
+    }
+  }
+  
+  return tables;
+}
+
+/**
+ * Check transaction status
+ */
+async function checkTransactionStatus(client: any): Promise<string> {
+  try {
+    const result = await client.query("SELECT txid_current(), pg_is_in_recovery()");
+    return `txid: ${result.rows[0].txid_current}, in_recovery: ${result.rows[0].pg_is_in_recovery}`;
+  } catch (error) {
+    return `unknown (error: ${error})`;
+  }
+}
+
+/**
  * Extract table names referenced in foreign key constraints from SQL
  */
 function extractReferencedTables(sql: string): string[] {
@@ -224,20 +285,41 @@ async function recordMigration(
   checksum: string,
   executionTimeMs: number
 ): Promise<void> {
+  // Check if schema_migrations table exists first
+  const trackingTableExists = await tableExists(client, "schema_migrations");
+  
+  if (!trackingTableExists) {
+    // For base schema migration, this is expected - the table will be created
+    if (filename.includes('base-schema')) {
+      console.log("  Note: schema_migrations table will be created by this migration");
+      return; // Don't try to insert, table doesn't exist yet
+    } else {
+      // For other migrations, this is a problem - base schema should have created it
+      throw new Error(
+        `Cannot record migration: schema_migrations table does not exist. ` +
+        `Base schema migration should have created it.`
+      );
+    }
+  }
+  
   try {
-    await client.query(
+    const result = await client.query(
       `INSERT INTO schema_migrations (filename, checksum, execution_time_ms)
        VALUES ($1, $2, $3)
-       ON CONFLICT (filename) DO NOTHING`,
+       ON CONFLICT (filename) DO NOTHING
+       RETURNING filename`,
       [filename, checksum, executionTimeMs]
     );
-  } catch (error: any) {
-    // If schema_migrations table doesn't exist, that's okay - it will be created by a migration
-    if (error?.code === "42P01") {
-      console.log("⚠ Migration tracking table not found, will be created by migration");
+    
+    if (result.rows.length === 0) {
+      console.log(`  Note: Migration ${filename} already recorded in tracking table`);
     } else {
-      throw error;
+      console.log(`  ✓ Migration recorded in tracking table`);
     }
+  } catch (error: any) {
+    // If we get here, table exists but insert failed - this is a real error
+    console.error(`  ✗ Failed to record migration:`, error);
+    throw error;
   }
 }
 
@@ -326,6 +408,10 @@ async function runMigrations() {
       const startTime = Date.now();
       
       try {
+        // Log transaction status before starting
+        const preTxStatus = await checkTransactionStatus(client);
+        console.log(`  Transaction status before BEGIN: ${preTxStatus}`);
+        
         await client.query("BEGIN");
         
         // Always split SQL into statements and execute one by one
@@ -372,14 +458,79 @@ async function runMigrations() {
         }
         
         const executionTime = Date.now() - startTime;
-        await recordMigration(client, file, checksum, executionTime);
+        
+        // Record migration BEFORE commit to ensure it's in the same transaction
+        // If schema_migrations doesn't exist yet, that's okay - it will be created by base schema
+        try {
+          await recordMigration(client, file, checksum, executionTime);
+        } catch (recordError: any) {
+          // If schema_migrations table doesn't exist, that's expected for base schema migration
+          // Don't fail the migration, but log it
+          if (recordError?.code === "42P01" && file.includes('base-schema')) {
+            console.log(`  Note: Migration tracking table will be created by this migration`);
+          } else if (recordError?.code === "42P01") {
+            console.log(`  ⚠ Could not record migration (tracking table not found), but continuing`);
+          } else {
+            throw recordError;
+          }
+        }
+        
+        // Commit the transaction
+        console.log(`  Committing transaction...`);
         await client.query("COMMIT");
+        
+        // CRITICAL: Verify transaction actually persisted by checking if tables exist
+        // This catches cases where COMMIT appears to succeed but changes don't persist
+        const expectedTables = getExpectedTables(sql, file);
+        if (expectedTables.length > 0) {
+          console.log(`  Verifying migration persisted (checking tables: ${expectedTables.join(', ')})...`);
+          try {
+            await verifyMigrationPersisted(client, file, expectedTables);
+            console.log(`  ✓ Verification passed - all expected tables exist`);
+          } catch (verifyError: any) {
+            console.error(`  ✗ VERIFICATION FAILED: ${verifyError.message}`);
+            console.error(`  Transaction appeared to commit but changes are not visible!`);
+            console.error(`  This indicates a serious database transaction issue.`);
+            throw verifyError;
+          }
+        }
+        
+        // Double-check: If this is base schema, verify schema_migrations table exists
+        // and record the migration now that the table exists
+        if (file.includes('base-schema')) {
+          const trackingExists = await tableExists(client, "schema_migrations");
+          if (!trackingExists) {
+            throw new Error(
+              `Base schema migration completed but schema_migrations table does not exist. ` +
+              `This indicates the transaction did not persist properly.`
+            );
+          }
+          console.log(`  ✓ Migration tracking table verified`);
+          
+          // Now record this migration since the table exists
+          try {
+            await recordMigration(client, file, checksum, executionTime);
+            console.log(`  ✓ Base schema migration recorded in tracking table`);
+          } catch (recordError: any) {
+            console.error(`  ⚠ Failed to record base schema migration:`, recordError);
+            // Don't fail the migration, but log the error
+          }
+        }
         
         console.log(`✓ Migration ${file} completed successfully (${executionTime}ms, ${statementCount} statements)`);
         appliedCount++;
       } catch (error: any) {
+        // Log transaction status before rollback
+        try {
+          const txStatus = await checkTransactionStatus(client);
+          console.error(`  Transaction status before rollback: ${txStatus}`);
+        } catch (statusError) {
+          console.error(`  Could not check transaction status: ${statusError}`);
+        }
+        
         try {
           await client.query("ROLLBACK");
+          console.log(`  ✓ Transaction rolled back`);
         } catch (rollbackError) {
           // Ignore rollback errors, transaction might already be rolled back
           console.error("⚠ Rollback error (may be expected):", rollbackError);
