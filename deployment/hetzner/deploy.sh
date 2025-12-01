@@ -243,26 +243,53 @@ if netstat -tlnp 2>/dev/null | grep -qE ':(80|443)' || ss -tlnp 2>/dev/null | gr
     sleep 2
 fi
 
-# Obtain certificate for both domain and www subdomain
-sudo certbot certonly --standalone \
-    --preferred-challenges http \
-    -d "$DOMAIN_NAME" \
-    -d "www.$DOMAIN_NAME" \
-    --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" \
-    --agree-tos \
-    --non-interactive || {
-    echo -e "${YELLOW}Warning: SSL certificate setup failed. You may need to set up DNS first.${NC}"
-    echo -e "${YELLOW}Continuing without SSL for now...${NC}"
-}
+# Check if certificate already exists that covers both domains
+CERT_EXISTS=false
+if sudo certbot certificates 2>/dev/null | grep -A 5 "Certificate Name:" | grep -q "$DOMAIN_NAME"; then
+    # Check if any cert includes both domains
+    if sudo certbot certificates 2>/dev/null | grep -A 10 "Certificate Name:" | grep -A 5 "$DOMAIN_NAME" | grep -q "www.$DOMAIN_NAME"; then
+        echo -e "${GREEN}Certificate already exists that covers both domains${NC}"
+        CERT_EXISTS=true
+    fi
+fi
+
+# Obtain certificate for both domain and www subdomain (if not already exists)
+if [ "$CERT_EXISTS" = false ]; then
+    sudo certbot certonly --standalone \
+        --preferred-challenges http \
+        -d "$DOMAIN_NAME" \
+        -d "www.$DOMAIN_NAME" \
+        --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" \
+        --agree-tos \
+        --non-interactive || {
+        echo -e "${YELLOW}Warning: SSL certificate setup failed. You may need to set up DNS first.${NC}"
+        echo -e "${YELLOW}Continuing without SSL for now...${NC}"
+    }
+fi
 
 # Update nginx config with SSL - use certbot nginx plugin for automatic configuration
 if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ] || [ -f "/etc/letsencrypt/live/$DOMAIN_NAME-0001/fullchain.pem" ]; then
     echo -e "${GREEN}Configuring HTTPS in Nginx...${NC}"
     
-    # Determine which certificate to use
+    # Determine which certificate to use (prefer one that includes www)
     CERT_NAME="$DOMAIN_NAME"
-    if [ ! -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/$DOMAIN_NAME-0001/fullchain.pem" ]; then
+    if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then
+        # Check if this cert includes www by checking certbot certificates output
+        if sudo certbot certificates 2>/dev/null | grep -A 5 "Certificate Name: $DOMAIN_NAME" | grep -q "www.$DOMAIN_NAME"; then
+            CERT_NAME="$DOMAIN_NAME"
+        elif [ -f "/etc/letsencrypt/live/$DOMAIN_NAME-0001/fullchain.pem" ]; then
+            CERT_NAME="$DOMAIN_NAME-0001"
+        fi
+    elif [ -f "/etc/letsencrypt/live/$DOMAIN_NAME-0001/fullchain.pem" ]; then
         CERT_NAME="$DOMAIN_NAME-0001"
+    fi
+    
+    # Ensure clean nginx config before certbot runs
+    # Restore from template if config test fails (might be corrupted)
+    if ! sudo nginx -t >/dev/null 2>&1; then
+        echo -e "${YELLOW}Nginx config appears corrupted, restoring from template...${NC}"
+        sudo cp deployment/hetzner/nginx.conf /etc/nginx/sites-available/circuit-sage
+        sudo sed -i "s/yourdomain.com/$DOMAIN_NAME/g" /etc/nginx/sites-available/circuit-sage
     fi
     
     # Kill nginx again before certbot runs (in case certbot started it)
@@ -272,19 +299,33 @@ if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ] || [ -f "/etc/letse
     
     # Use certbot's nginx plugin to automatically configure SSL for both domains
     # This is more reliable than manual sed edits
-    if ! sudo certbot --nginx -d "$DOMAIN_NAME" -d "www.$DOMAIN_NAME" --non-interactive --agree-tos --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" --redirect; then
-        echo -e "${YELLOW}Certbot nginx plugin failed.${NC}"
-        echo -e "${YELLOW}Certificate was obtained but nginx configuration failed.${NC}"
-        echo -e "${YELLOW}Attempting to install certificate manually...${NC}"
+    CERTBOT_SUCCESS=false
+    if sudo certbot --nginx -d "$DOMAIN_NAME" -d "www.$DOMAIN_NAME" --non-interactive --agree-tos --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" --redirect 2>&1 | tee /tmp/certbot-output.log; then
+        CERTBOT_SUCCESS=true
+    else
+        echo -e "${YELLOW}Certbot nginx plugin had issues, checking if SSL was configured...${NC}"
+        # Check if certbot actually configured SSL (even if restart failed)
+        if sudo nginx -t >/dev/null 2>&1 && sudo grep -q "ssl_certificate" /etc/nginx/sites-enabled/circuit-sage 2>/dev/null; then
+            echo -e "${GREEN}SSL configuration found in nginx config${NC}"
+            CERTBOT_SUCCESS=true
+        fi
+    fi
+    
+    if [ "$CERTBOT_SUCCESS" = false ]; then
+        echo -e "${YELLOW}Certbot nginx plugin failed. Attempting fallback...${NC}"
+        
+        # Restore clean config and try certbot install
+        sudo cp deployment/hetzner/nginx.conf /etc/nginx/sites-available/circuit-sage
+        sudo sed -i "s/yourdomain.com/$DOMAIN_NAME/g" /etc/nginx/sites-available/circuit-sage
         
         # Try to install the certificate using certbot install
         if sudo certbot install --cert-name "$CERT_NAME" --nginx --non-interactive 2>/dev/null; then
-            echo -e "${GREEN}Certificate installed successfully${NC}"
+            echo -e "${GREEN}Certificate installed successfully via certbot install${NC}"
+            CERTBOT_SUCCESS=true
         else
             echo -e "${RED}Failed to install certificate automatically.${NC}"
             echo -e "${YELLOW}Please manually configure SSL in /etc/nginx/sites-available/circuit-sage${NC}"
             echo -e "${YELLOW}Certificate is available at: /etc/letsencrypt/live/$CERT_NAME/${NC}"
-            echo -e "${YELLOW}You can run: sudo certbot install --cert-name $CERT_NAME --nginx${NC}"
         fi
     fi
     
@@ -303,6 +344,27 @@ sleep 2
 
 # Reload systemd to ensure it knows nginx is stopped
 sudo systemctl daemon-reload
+
+# Validate nginx configuration before starting
+if ! sudo nginx -t; then
+    echo -e "${RED}✗ Nginx configuration test failed${NC}"
+    echo -e "${YELLOW}Attempting to restore clean config...${NC}"
+    sudo cp deployment/hetzner/nginx.conf /etc/nginx/sites-available/circuit-sage
+    sudo sed -i "s/yourdomain.com/$DOMAIN_NAME/g" /etc/nginx/sites-available/circuit-sage
+    
+    # If SSL was configured, try certbot install again
+    if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ] || [ -f "/etc/letsencrypt/live/$DOMAIN_NAME-0001/fullchain.pem" ]; then
+        echo -e "${YELLOW}Re-running certbot to configure SSL...${NC}"
+        sudo certbot --nginx -d "$DOMAIN_NAME" -d "www.$DOMAIN_NAME" --non-interactive --agree-tos --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" --redirect || true
+    fi
+    
+    # Test again
+    if ! sudo nginx -t; then
+        echo -e "${RED}✗ Nginx configuration still invalid after restore${NC}"
+        echo -e "${YELLOW}Please check /etc/nginx/sites-available/circuit-sage manually${NC}"
+        exit 1
+    fi
+fi
 
 # Start nginx (or reload if certbot already started it)
 if sudo systemctl is-active --quiet nginx; then
