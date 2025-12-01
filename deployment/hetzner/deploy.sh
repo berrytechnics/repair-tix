@@ -284,9 +284,34 @@ else
     echo -e "${YELLOW}  Then run this deploy script again, or use: sudo certbot --nginx -d $DOMAIN_NAME${NC}"
 fi
 
-# Start nginx
-sudo systemctl start nginx
+# Ensure nginx is properly started
+# Kill any orphaned nginx processes that might be holding ports
+sudo pkill -9 nginx || true
+sleep 2
+
+# Reload systemd to ensure it knows nginx is stopped
+sudo systemctl daemon-reload
+
+# Start nginx (or reload if certbot already started it)
+if sudo systemctl is-active --quiet nginx; then
+    echo -e "${GREEN}Nginx is already running, reloading configuration...${NC}"
+    sudo systemctl reload nginx
+else
+    echo -e "${GREEN}Starting nginx...${NC}"
+    sudo systemctl start nginx
+fi
+
+# Ensure nginx is enabled on boot
 sudo systemctl enable nginx
+
+# Verify nginx is running
+if sudo systemctl is-active --quiet nginx; then
+    echo -e "${GREEN}✓ Nginx is running${NC}"
+else
+    echo -e "${RED}✗ Nginx failed to start${NC}"
+    sudo systemctl status nginx
+    exit 1
+fi
 
 echo -e "${GREEN}Step 9: Setting up SSL certificate auto-renewal...${NC}"
 # Add cron job for certificate renewal
