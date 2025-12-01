@@ -273,7 +273,8 @@ async function runMigrations() {
           statementCount = sql.split(';').filter(s => s.trim().length > 0).length;
         } catch (error: any) {
           // If direct execution fails, rollback and try splitting into statements
-          console.log(`  Direct execution failed, rolling back and splitting into statements...`);
+          console.log(`  Direct execution failed: ${error.message || error}`);
+          console.log(`  Rolling back and splitting into statements...`);
           await client.query("ROLLBACK");
           await client.query("BEGIN");
           
