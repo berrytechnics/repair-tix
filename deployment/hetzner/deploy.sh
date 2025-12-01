@@ -46,26 +46,81 @@ if [ ${#MISSING_VARS[@]} -ne 0 ]; then
 fi
 
 echo -e "${GREEN}Step 1: Building Docker images...${NC}"
-docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml --env-file .env.production build --no-cache
 
 echo -e "${GREEN}Step 2: Stopping existing containers...${NC}"
-docker compose -f docker-compose.prod.yml down || true
+docker compose -f docker-compose.prod.yml --env-file .env.production down || true
 
-echo -e "${GREEN}Step 3: Starting services...${NC}"
-docker compose -f docker-compose.prod.yml up -d
+echo -e "${GREEN}Step 3: Starting database first...${NC}"
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d postgres
 
-echo -e "${GREEN}Step 4: Waiting for services to be healthy...${NC}"
-sleep 10
+# Wait for database to be healthy
+echo -e "${GREEN}Waiting for database to be ready...${NC}"
+MAX_WAIT=60
+WAIT_COUNT=0
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    if docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres pg_isready -U "${POSTGRES_USER:-circuit_sage_user}" -d "${POSTGRES_DB:-circuit_sage_db}" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Database is ready${NC}"
+        break
+    fi
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    echo -n "."
+    sleep 1
+done
+echo ""
 
-# Check if containers are running
-if ! docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
-    echo -e "${RED}Error: Some containers failed to start${NC}"
-    echo -e "${YELLOW}Checking logs...${NC}"
-    docker compose -f docker-compose.prod.yml logs
+if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
+    echo -e "${RED}Error: Database failed to become ready after ${MAX_WAIT} seconds${NC}"
+    docker compose -f docker-compose.prod.yml --env-file .env.production logs postgres
     exit 1
 fi
 
-echo -e "${GREEN}Step 5: Setting up Nginx configuration...${NC}"
+echo -e "${GREEN}Step 4: Running database migrations...${NC}"
+# Start backend temporarily to run migrations
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d backend
+
+# Wait for backend to start
+sleep 5
+
+# Run migrations explicitly
+echo -e "${GREEN}Running migrations...${NC}"
+MIGRATION_ATTEMPTS=0
+MAX_MIGRATION_ATTEMPTS=5
+MIGRATION_SUCCESS=false
+
+while [ $MIGRATION_ATTEMPTS -lt $MAX_MIGRATION_ATTEMPTS ]; do
+    if docker compose -f docker-compose.prod.yml --env-file .env.production exec -T backend yarn migrate:prod; then
+        MIGRATION_SUCCESS=true
+        echo -e "${GREEN}✓ Migrations completed successfully${NC}"
+        break
+    else
+        MIGRATION_ATTEMPTS=$((MIGRATION_ATTEMPTS + 1))
+        echo -e "${YELLOW}Migration attempt ${MIGRATION_ATTEMPTS} failed, retrying...${NC}"
+        sleep 3
+    fi
+done
+
+if [ "$MIGRATION_SUCCESS" = false ]; then
+    echo -e "${RED}Error: Migrations failed after ${MAX_MIGRATION_ATTEMPTS} attempts${NC}"
+    docker compose -f docker-compose.prod.yml --env-file .env.production logs backend
+    exit 1
+fi
+
+echo -e "${GREEN}Step 5: Starting all services...${NC}"
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+
+echo -e "${GREEN}Step 6: Waiting for services to be healthy...${NC}"
+sleep 15
+
+# Check if containers are running
+if ! docker compose -f docker-compose.prod.yml --env-file .env.production ps | grep -q "Up"; then
+    echo -e "${RED}Error: Some containers failed to start${NC}"
+    echo -e "${YELLOW}Checking logs...${NC}"
+    docker compose -f docker-compose.prod.yml --env-file .env.production logs
+    exit 1
+fi
+
+echo -e "${GREEN}Step 7: Setting up Nginx configuration...${NC}"
 # Copy nginx config
 sudo cp deployment/hetzner/nginx.conf /etc/nginx/sites-available/circuit-sage
 
@@ -82,7 +137,7 @@ if ! sudo nginx -t; then
     exit 1
 fi
 
-echo -e "${GREEN}Step 6: Setting up SSL certificate...${NC}"
+echo -e "${GREEN}Step 8: Setting up SSL certificate...${NC}"
 # Stop nginx temporarily for certbot
 sudo systemctl stop nginx || true
 
@@ -97,59 +152,92 @@ sudo certbot certonly --standalone \
     echo -e "${YELLOW}Continuing without SSL for now...${NC}"
 }
 
-# Update nginx config with SSL - uncomment HTTPS server block and enable redirect
+# Update nginx config with SSL - use certbot nginx plugin for automatic configuration
 if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then
-    # Replace domain placeholder in SSL certificate paths
-    sudo sed -i "s|yourdomain.com|$DOMAIN_NAME|g" /etc/nginx/sites-available/circuit-sage
+    echo -e "${GREEN}Configuring HTTPS in Nginx...${NC}"
     
-    # Uncomment HTTPS server block (remove leading # and spaces from commented lines)
-    sudo sed -i '/^# server {$/,/^# }$/s/^# //' /etc/nginx/sites-available/circuit-sage
-    sudo sed -i '/^#     /s/^#     /    /' /etc/nginx/sites-available/circuit-sage
-    sudo sed -i '/^#    /s/^#    /   /' /etc/nginx/sites-available/circuit-sage
+    # Use certbot's nginx plugin to automatically configure SSL
+    # This is more reliable than manual sed edits
+    sudo certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos --email "${SSL_EMAIL:-admin@$DOMAIN_NAME}" --redirect || {
+        echo -e "${YELLOW}Certbot nginx plugin failed, trying manual configuration...${NC}"
+        
+        # Fallback: Manual configuration using sed
+        sudo cp deployment/hetzner/nginx.conf /etc/nginx/sites-available/circuit-sage
+        sudo sed -i "s/yourdomain.com/$DOMAIN_NAME/g" /etc/nginx/sites-available/circuit-sage
+        
+        # Uncomment HTTPS server block (remove # from lines 73-147)
+        sudo sed -i '73,147s/^#//' /etc/nginx/sites-available/circuit-sage
+        
+        # Comment out HTTP proxy locations and add redirects
+        sudo sed -i '32,46s/^    \(location\|proxy\|limit_req\)/    # \1/' /etc/nginx/sites-available/circuit-sage
+        sudo sed -i '48,61s/^    \(location\|proxy\|limit_req\)/    # \1/' /etc/nginx/sites-available/circuit-sage
+        
+        # Add redirects before the commented locations
+        sudo sed -i '31a\    location / {\n        return 301 https://$server_name$request_uri;\n    }' /etc/nginx/sites-available/circuit-sage
+        sudo sed -i '47a\    location /api {\n        return 301 https://$server_name$request_uri;\n    }' /etc/nginx/sites-available/circuit-sage
+        
+        # Test configuration
+        if ! sudo nginx -t; then
+            echo -e "${YELLOW}Warning: Nginx config test failed after SSL setup.${NC}"
+            echo -e "${YELLOW}You may need to manually configure SSL in /etc/nginx/sites-available/circuit-sage${NC}"
+        fi
+    }
     
-    # Comment out HTTP proxy_pass sections
-    sudo sed -i '/^    location \/ {$/,/^    }$/s/^    /    # /' /etc/nginx/sites-available/circuit-sage
-    sudo sed -i '/^    location \/api {$/,/^    }$/s/^    /    # /' /etc/nginx/sites-available/circuit-sage
-    
-    # Uncomment redirect locations
-    sudo sed -i 's|#     return 301|    return 301|' /etc/nginx/sites-available/circuit-sage
-    
-    # Test configuration
-    if ! sudo nginx -t; then
-        echo -e "${YELLOW}Warning: Nginx config test failed after SSL setup. Manual fix may be needed.${NC}"
-    fi
-    
-    echo -e "${GREEN}SSL certificate configured successfully${NC}"
+    echo -e "${GREEN}✓ SSL configuration completed${NC}"
 else
     echo -e "${YELLOW}SSL certificate not found. Using HTTP only for now.${NC}"
     echo -e "${YELLOW}You can set up SSL later by running:${NC}"
     echo -e "${YELLOW}  sudo certbot certonly --standalone -d $DOMAIN_NAME${NC}"
-    echo -e "${YELLOW}  Then manually update /etc/nginx/sites-available/circuit-sage${NC}"
+    echo -e "${YELLOW}  Then run this deploy script again, or use: sudo certbot --nginx -d $DOMAIN_NAME${NC}"
 fi
 
 # Start nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
 
-echo -e "${GREEN}Step 7: Setting up SSL certificate auto-renewal...${NC}"
+echo -e "${GREEN}Step 9: Setting up SSL certificate auto-renewal...${NC}"
 # Add cron job for certificate renewal
 (crontab -l 2>/dev/null | grep -v "certbot renew"; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
 
-echo -e "${GREEN}Step 8: Checking service health...${NC}"
-sleep 5
+echo -e "${GREEN}Step 10: Checking service health...${NC}"
+sleep 10
 
-# Check backend health
-if curl -f -s http://localhost:4000/health > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ Backend is healthy${NC}"
-else
-    echo -e "${YELLOW}⚠ Backend health check failed (this may be normal if migrations are still running)${NC}"
+# Check backend health with retries
+BACKEND_HEALTHY=false
+for i in {1..10}; do
+    if curl -f -s http://localhost:4000/health > /dev/null 2>&1; then
+        BACKEND_HEALTHY=true
+        echo -e "${GREEN}✓ Backend is healthy${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+if [ "$BACKEND_HEALTHY" = false ]; then
+    echo -e "${YELLOW}⚠ Backend health check failed${NC}"
+    echo -e "${YELLOW}Checking backend logs...${NC}"
+    docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail=50 backend
 fi
 
-# Check frontend
-if curl -f -s http://localhost:3000 > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ Frontend is responding${NC}"
-else
+# Check frontend with retries
+FRONTEND_HEALTHY=false
+for i in {1..10}; do
+    if curl -f -s http://localhost:3000 > /dev/null 2>&1; then
+        FRONTEND_HEALTHY=true
+        echo -e "${GREEN}✓ Frontend is responding${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+if [ "$FRONTEND_HEALTHY" = false ]; then
     echo -e "${YELLOW}⚠ Frontend check failed${NC}"
+    echo -e "${YELLOW}Checking frontend logs...${NC}"
+    docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail=50 frontend
 fi
 
 echo ""
@@ -162,10 +250,10 @@ echo "  - Frontend: http://$DOMAIN_NAME (or http://$(hostname -I | awk '{print $
 echo "  - Backend API: http://$DOMAIN_NAME/api"
 echo ""
 echo "To view logs:"
-echo "  docker compose -f docker-compose.prod.yml logs -f"
+echo "  docker compose -f docker-compose.prod.yml --env-file .env.production logs -f"
 echo ""
 echo "To stop services:"
-echo "  docker compose -f docker-compose.prod.yml down"
+echo "  docker compose -f docker-compose.prod.yml --env-file .env.production down"
 echo ""
 echo -e "${YELLOW}Important: Remove default admin credentials after first login!${NC}"
 
