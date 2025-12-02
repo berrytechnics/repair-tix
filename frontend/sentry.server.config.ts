@@ -5,8 +5,7 @@ Sentry.init({
   environment: process.env.NODE_ENV || "development",
   sendDefaultPii: true,
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-  integrations: [
-    new Sentry.Integrations.Http({ tracing: true }),
-  ],
+  // HTTP tracing is automatically enabled in @sentry/nextjs v10
+  // No need to manually add integrations
 });
 
