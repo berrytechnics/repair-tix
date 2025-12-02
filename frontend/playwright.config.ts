@@ -23,6 +23,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
+  /* Set environment variables for tests */
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api',
+  },
+
   /* Configure projects for major browsers */
   projects: [
     {
@@ -37,15 +42,21 @@ export default defineConfig({
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Safari'],
+        // WebKit-specific workarounds
+        // Increase timeout for WebKit (it's slower and has stricter security)
+        actionTimeout: 30000,
+        navigationTimeout: 30000,
+      },
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
+  /* Run your local dev server before starting the tests (disabled in CI where servers are started manually) */
+  webServer: process.env.CI ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 });

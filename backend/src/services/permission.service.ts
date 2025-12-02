@@ -2,15 +2,22 @@
 import { sql } from "kysely";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../config/connection.js";
-import { ROLE_PERMISSIONS } from "../config/permissions.js";
+import { PERMISSIONS, ROLE_PERMISSIONS } from "../config/permissions.js";
 import { UserRole } from "../config/types.js";
 
 class PermissionService {
   /**
    * Get all permissions for a specific role in a company
    * Falls back to config if database returns empty (e.g., permissions not initialized)
+   * For admin role, always returns ALL permissions from PERMISSIONS object (config-first approach)
    */
   async getPermissionsForRole(role: UserRole, companyId: string): Promise<string[]> {
+    // Admin role always gets ALL permissions dynamically from PERMISSIONS object
+    // This ensures admin always has latest permissions even if DB is out of sync
+    if (role === "admin") {
+      return Object.values(PERMISSIONS);
+    }
+
     try {
       const permissions = await db
         .selectFrom("role_permissions")
@@ -55,6 +62,7 @@ class PermissionService {
 
   /**
    * Get full permissions matrix (all roles and their permissions) for a company
+   * Admin role always returns ALL permissions from PERMISSIONS object
    */
   async getPermissionsMatrix(companyId: string): Promise<Record<UserRole, string[]>> {
     const allPermissions = await db
@@ -75,6 +83,9 @@ class PermissionService {
         matrix[row.role].push(row.permission);
       }
     }
+
+    // Admin role always gets ALL permissions dynamically
+    matrix.admin = Object.values(PERMISSIONS);
 
     // Sort permissions for consistency
     Object.keys(matrix).forEach((role) => {
@@ -121,19 +132,55 @@ class PermissionService {
 
   /**
    * Get all available permissions (unique list from database)
+   * Returns all permissions from PERMISSIONS config object
    */
   async getAllAvailablePermissions(): Promise<string[]> {
-    const permissions = await db
+    // Return all permissions from config (source of truth)
+    return Object.values(PERMISSIONS).sort();
+  }
+
+  /**
+   * Sync admin permissions for a company
+   * Ensures admin role has ALL permissions from PERMISSIONS object in database
+   * Adds any missing permissions without removing existing ones
+   */
+  async syncAdminPermissions(companyId: string): Promise<void> {
+    const allPermissions = Object.values(PERMISSIONS);
+    
+    // Get existing admin permissions from database
+    const existingPermissions = await db
       .selectFrom("role_permissions")
       .select("permission")
-      .distinct()
+      .where("role", "=", "admin")
+      .where("company_id", "=", companyId)
       .execute();
 
-    return permissions.map((p) => p.permission).sort();
+    const existingPermissionSet = new Set(existingPermissions.map((p) => p.permission));
+    
+    // Find missing permissions
+    const missingPermissions = allPermissions.filter(
+      (permission) => !existingPermissionSet.has(permission)
+    );
+
+    // Insert missing permissions
+    if (missingPermissions.length > 0) {
+      const inserts = missingPermissions.map((permission) => ({
+        id: uuidv4(),
+        company_id: companyId,
+        role: "admin" as UserRole,
+        permission,
+      }));
+
+      await db
+        .insertInto("role_permissions")
+        .values(inserts)
+        .execute();
+    }
   }
 
   /**
    * Initialize default permissions for a new company
+   * Admin permissions are handled dynamically (all permissions from PERMISSIONS object)
    */
   async initializeCompanyPermissions(companyId: string): Promise<void> {
     // Check if permissions already exist for this company
@@ -145,13 +192,17 @@ class PermissionService {
       .executeTakeFirst();
 
     if (existing) {
-      // Permissions already initialized
+      // Permissions already initialized, but sync admin permissions to ensure they're up to date
+      await this.syncAdminPermissions(companyId);
       return;
     }
 
     // Try to use the database function first (if migration has run)
+    // Note: SQL function may not include all admin permissions, so we'll sync after
     try {
       await sql`SELECT initialize_company_permissions(${companyId})`.execute(db);
+      // Sync admin permissions after SQL function runs to ensure all permissions are included
+      await this.syncAdminPermissions(companyId);
     } catch {
       // If function doesn't exist, manually insert from config
       // Insert all default permissions for this company
@@ -177,6 +228,9 @@ class PermissionService {
           .values(inserts)
           .execute();
       }
+      
+      // Ensure admin has all permissions (in case config was updated)
+      await this.syncAdminPermissions(companyId);
     }
   }
 }

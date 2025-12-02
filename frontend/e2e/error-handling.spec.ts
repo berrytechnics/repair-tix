@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { clearStorageWebKitSafe } from './helpers/webkit-workarounds';
 
 test.describe('Error Handling', () => {
   test('should handle 404 errors gracefully', async ({ page }) => {
@@ -13,9 +14,8 @@ test.describe('Error Handling', () => {
   test('should handle unauthorized access', async ({ page }) => {
     // Clear auth state
     await page.context().clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-    });
+    // Use WebKit-safe storage clearing
+    await clearStorageWebKitSafe(page);
     
     // Try to access protected route
     await page.goto('/dashboard');
@@ -30,7 +30,7 @@ test.describe('Error Handling', () => {
     // Try to login with invalid credentials
     await page.getByLabel(/email/i).fill('test@example.com');
     await page.getByLabel(/password/i).fill('wrongpassword');
-    await page.getByRole('button', { name: /login/i }).click();
+    await page.getByRole('button', { name: /sign in|login/i }).click();
     
     // Should show error message (if backend is running)
     // This test may need adjustment based on actual error handling

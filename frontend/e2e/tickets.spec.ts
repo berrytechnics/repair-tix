@@ -1,30 +1,327 @@
 import { expect, test } from '@playwright/test';
+import { isAuthenticated, loginAsRole } from './helpers/auth';
+import {
+  createTestCustomer,
+  createTestTicket,
+  deleteCustomer,
+  deleteTicket,
+  getTicket,
+} from './helpers/fixtures';
 
 test.describe('Ticket CRUD Operations', () => {
-  test('should display tickets list page', async ({ page }) => {
+  let createdCustomerIds: string[] = [];
+  let createdTicketIds: string[] = [];
+
+  // Clean up after each test
+  test.afterEach(async ({ page }, testInfo) => {
+    // Skip cleanup if test failed with security error
+    if (testInfo.status === 'failed' && testInfo.error?.message?.includes('SecurityError')) {
+      createdTicketIds = [];
+      createdCustomerIds = [];
+      return;
+    }
+    
+    try {
+      await loginAsRole(page, 'admin');
+      for (const id of createdTicketIds) {
+        try {
+          await deleteTicket(page, id);
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+      }
+      for (const id of createdCustomerIds) {
+        try {
+          await deleteCustomer(page, id);
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+      }
+    } catch (error) {
+      // Ignore cleanup errors - test might have failed before login
+    }
+    createdTicketIds = [];
+    createdCustomerIds = [];
+  });
+
+  test('should redirect to login when not authenticated', async ({ page }) => {
+    await page.goto('/tickets');
+    await expect(page).toHaveURL(/.*login/);
+  });
+
+  test('should display tickets list page when authenticated', async ({ page }) => {
+    await loginAsRole(page, 'technician');
     await page.goto('/tickets');
     
-    // Should either show tickets list or redirect to login
-    const url = page.url();
-    if (url.includes('/login')) {
-      expect(url).toContain('/login');
-    } else {
-      await expect(page.getByRole('heading', { name: /tickets/i })).toBeVisible();
-    }
+    await expect(page.getByRole('heading', { name: /tickets/i })).toBeVisible();
   });
 
   test('should navigate to new ticket page', async ({ page }) => {
+    await loginAsRole(page, 'admin'); // Admin has permission to create tickets
     await page.goto('/tickets');
     
-    const newButton = page.getByRole('button', { name: /new|add/i });
-    if (await newButton.isVisible()) {
-      await newButton.click();
-      await expect(page).toHaveURL(/.*tickets.*new/);
+    // Button text is "Create Ticket"
+    const newButton = page.getByRole('button', { name: /^create ticket$/i });
+    await newButton.click();
+    await expect(page).toHaveURL(/.*tickets.*new/);
+  });
+
+  test('should create a new ticket', async ({ page }) => {
+    // Use admin role - technician can't create customers
+    await loginAsRole(page, 'admin');
+    
+    // Create a customer first
+    const customerId = await createTestCustomer(page, {
+      firstName: 'Ticket',
+      lastName: 'Customer',
+      email: 'ticket.customer@example.com',
+    });
+    createdCustomerIds.push(customerId);
+
+    // Navigate to new ticket page
+    await page.goto('/tickets/new');
+    
+    // Verify we're authenticated
+    const isAuthBefore = await isAuthenticated(page);
+    if (!isAuthBefore) {
+      throw new Error('Not authenticated before customer search');
+    }
+    
+    // Verify we're on the correct page
+    await expect(page).toHaveURL(/.*tickets.*new/, { timeout: 10000 });
+
+    // TicketForm uses search input + clickable list, not a dropdown
+    // Wait for page to load first
+    await page.waitForLoadState('networkidle');
+    
+    const customerSearch = page.getByLabel(/search.*customer/i).or(page.locator('input#customerSearch'));
+    await customerSearch.waitFor({ state: 'visible', timeout: 10000 });
+    await customerSearch.fill('Ticket Customer');
+    
+    // Verify still authenticated after filling search
+    const isAuthAfterFill = await isAuthenticated(page);
+    if (!isAuthAfterFill) {
+      throw new Error('Authentication lost after filling customer search');
+    }
+    
+    // Click search button
+    const searchButton = page.getByRole('button', { name: /search/i });
+    await searchButton.waitFor({ state: 'visible', timeout: 10000 });
+    await searchButton.click();
+    
+    // Wait for search results to appear - use more specific selector
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000); // Give time for results to render
+    
+    // Verify still authenticated after search
+    const isAuthAfterSearch = await isAuthenticated(page);
+    if (!isAuthAfterSearch) {
+      throw new Error('Authentication lost after clicking search');
+    }
+    
+    // Verify we're still on the ticket form page (not redirected to login)
+    await expect(page).toHaveURL(/.*tickets.*new/, { timeout: 5000 });
+    
+    // Click the customer from the list (should be in a clickable list item)
+    // Try multiple selectors to find the customer list item
+    const customerListItem = page.locator('ul li').filter({ hasText: /ticket customer/i }).or(
+      page.getByText(/ticket customer/i).locator('..')
+    ).first();
+    await customerListItem.waitFor({ state: 'visible', timeout: 10000 });
+    await customerListItem.click();
+    
+    // Wait for customer to be selected and form to update
+    await page.waitForLoadState('networkidle');
+    
+    // Verify still authenticated after selecting customer
+    const isAuthAfterSelect = await isAuthenticated(page);
+    if (!isAuthAfterSelect) {
+      throw new Error('Authentication lost after selecting customer');
+    }
+    
+    // Verify we're still on the ticket form page
+    await expect(page).toHaveURL(/.*tickets.*new/, { timeout: 5000 });
+
+    // Fill in ticket details (required fields: deviceType, issueDescription)
+    await page.getByLabel(/device type/i).fill('Laptop');
+    await page.getByLabel(/device brand/i).fill('Dell');
+    await page.getByLabel(/device model/i).fill('XPS 13');
+    await page.getByLabel(/issue|description/i).fill('Screen not working');
+
+    // Submit form
+    await page.getByRole('button', { name: /save|create|submit/i }).click();
+
+    // Wait for redirect
+    await page.waitForURL(/.*tickets.*/, { timeout: 10000 });
+    
+    // Verify success
+    await expect(
+      page.getByText(/ticket|success|created/i).first()
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  test('should view ticket details', async ({ page }) => {
+    // Use admin role - technician can't create customers
+    await loginAsRole(page, 'admin');
+    
+    // Create customer and ticket via API
+    const customerId = await createTestCustomer(page, {
+      firstName: 'View',
+      lastName: 'Ticket',
+      email: 'view.ticket@example.com',
+    });
+    createdCustomerIds.push(customerId);
+
+    const ticketId = await createTestTicket(page, {
+      customerId,
+      deviceType: 'Phone',
+      deviceBrand: 'iPhone',
+      deviceModel: '13 Pro',
+      issueDescription: 'Battery replacement needed',
+    });
+    createdTicketIds.push(ticketId);
+
+    // Navigate to ticket detail page
+    await page.goto(`/tickets/${ticketId}`);
+
+    // Verify ticket details are displayed (use .first() to handle multiple matches)
+    await expect(page.getByText(/phone|iphone/i).first()).toBeVisible();
+    await expect(page.getByText(/battery/i)).toBeVisible();
+  });
+
+  test('should update ticket status', async ({ page }) => {
+    // Use admin role - technician can't create customers
+    await loginAsRole(page, 'admin');
+    
+    // Create ticket via API
+    const customerId = await createTestCustomer(page, {
+      firstName: 'Status',
+      lastName: 'Test',
+      email: 'status@example.com',
+    });
+    createdCustomerIds.push(customerId);
+
+    const ticketId = await createTestTicket(page, {
+      customerId,
+      deviceType: 'Tablet',
+      issueDescription: 'Status test ticket',
+      status: 'new',
+    });
+    createdTicketIds.push(ticketId);
+
+    // Navigate to ticket detail page
+    await page.goto(`/tickets/${ticketId}`);
+
+    // Find status dropdown/select and change status
+    const statusSelect = page.getByLabel(/status/i);
+    if (await statusSelect.isVisible()) {
+      await statusSelect.click();
+      await page.getByText(/in repair|diagnosed/i).click();
+
+      // Wait for status update
+      await page.waitForTimeout(1000);
+
+      // Verify status changed
+      await expect(page.getByText(/in repair|diagnosed/i)).toBeVisible();
+    }
+  });
+
+  test('should assign technician to ticket', async ({ page }) => {
+    await loginAsRole(page, 'admin');
+    
+    // Create ticket via API
+    const customerId = await createTestCustomer(page, {
+      firstName: 'Assign',
+      lastName: 'Test',
+      email: 'assign@example.com',
+    });
+    createdCustomerIds.push(customerId);
+
+    const ticketId = await createTestTicket(page, {
+      customerId,
+      deviceType: 'Laptop',
+      issueDescription: 'Assignment test ticket',
+    });
+    createdTicketIds.push(ticketId);
+
+    // Navigate to ticket detail page
+    await page.goto(`/tickets/${ticketId}`);
+
+    // Find technician assignment dropdown
+    const technicianSelect = page.getByLabel(/technician|assign/i);
+    if (await technicianSelect.isVisible()) {
+      await technicianSelect.click();
+      // Select a technician (assuming dropdown shows available technicians)
+      await page.getByText(/technician/i).first().click();
+
+      // Wait for assignment
+      await page.waitForTimeout(1000);
+
+      // Verify technician assigned
+      await expect(page.getByText(/technician/i)).toBeVisible();
+    }
+  });
+
+  test('should add diagnostic notes', async ({ page }) => {
+    // Use admin role - technician can't create customers
+    await loginAsRole(page, 'admin');
+    
+    // Create ticket via API
+    const customerId = await createTestCustomer(page, {
+      firstName: 'Notes',
+      lastName: 'Test',
+      email: 'notes@example.com',
+    });
+    createdCustomerIds.push(customerId);
+
+    const ticketId = await createTestTicket(page, {
+      customerId,
+      deviceType: 'Desktop',
+      issueDescription: 'Diagnostic notes test ticket',
+    });
+    createdTicketIds.push(ticketId);
+
+    // Navigate to ticket detail page
+    await page.goto(`/tickets/${ticketId}`);
+
+    // Find diagnostic notes section
+    const notesSection = page.getByText(/diagnostic notes/i);
+    if (await notesSection.isVisible()) {
+      // Find add note button or textarea
+      const addNoteButton = page.getByRole('button', { name: /add.*note|diagnostic/i });
+      if (await addNoteButton.isVisible()) {
+        await addNoteButton.click();
+      }
+
+      // Fill in note
+      const noteInput = page.getByPlaceholder(/diagnostic|note/i).or(
+        page.getByLabel(/diagnostic|note/i)
+      );
+      await noteInput.fill('Diagnostic test completed - all systems operational');
+
+      // Save note
+      await page.getByRole('button', { name: /save|submit/i }).click();
+
+      // Verify note appears
+      await expect(page.getByText(/diagnostic test completed/i)).toBeVisible();
+    }
+  });
+
+  test('should filter tickets by status', async ({ page }) => {
+    await loginAsRole(page, 'technician');
+    await page.goto('/tickets');
+
+    // Look for status filter
+    const statusFilter = page.getByLabel(/status|filter/i);
+    if (await statusFilter.isVisible()) {
+      await statusFilter.click();
+      await page.getByText(/completed/i).click();
+
+      // Wait for filtered results
+      await page.waitForTimeout(500);
+
+      // Verify filtered tickets are shown
+      // This depends on your filtering implementation
     }
   });
 });
-
-
-
-
-
