@@ -35,8 +35,11 @@ export async function checkMaintenanceMode(
       return next();
     }
 
-    // Note: Auth routes (login/register) are NOT bypassed here
-    // They have their own maintenance check middleware that allows superusers
+    // Allow auth routes - they have their own maintenance check middleware
+    // that can authenticate users first before checking maintenance mode
+    if (req.path.startsWith("/api/auth")) {
+      return next();
+    }
 
     // Check if maintenance mode is enabled
     const maintenanceSetting = await db
