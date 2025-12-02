@@ -8,3 +8,4 @@ backend/tests/Flashpost-tests
 .DS_Store
 planning/
 **/logs
+.ssh/
