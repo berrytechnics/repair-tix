@@ -16,8 +16,11 @@ export default function MainContent({ children }: MainContentProps) {
   const isHomePage = pathname === "/";
   const shouldShowSidebar = !isLoading && user && !isAuthPage && !isHomePage;
   
+  // Don't apply padding on homepage or auth pages (they manage their own spacing)
+  const shouldApplyPadding = !isHomePage && !isAuthPage;
+  
   return (
-    <main className={`flex-1 p-4 lg:p-8 bg-background ${shouldShowSidebar ? "lg:ml-64" : ""}`}>
+    <main className={`flex-1 ${shouldApplyPadding ? "p-4 lg:p-8" : ""} bg-background ${shouldShowSidebar ? "lg:ml-64" : ""}`}>
       {children}
     </main>
   );
