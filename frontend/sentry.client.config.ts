@@ -5,13 +5,8 @@ Sentry.init({
   environment: process.env.NODE_ENV || "development",
   sendDefaultPii: true,
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
-  integrations: [
-    new Sentry.BrowserTracing(),
-    new Sentry.Replay({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
+  // Browser tracing and replay are automatically enabled in @sentry/nextjs v10
+  // Replay configuration
   replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
   replaysOnErrorSampleRate: 1.0,
 });
