@@ -19,6 +19,7 @@ const nextConfig = {
   experimental: {
     outputFileTracingRoot: path.resolve(__dirname),
     memoryBasedWorkersCount: true,
+    instrumentationHook: true,
   },
   compiler: {
     reactRemoveProperties: process.env.NODE_ENV === "production",

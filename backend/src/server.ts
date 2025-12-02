@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+import * as Sentry from "@sentry/node";
+import { expressIntegration } from "@sentry/node";
 import app from "./app.js";
 import { closeConnection, testConnection } from "./config/connection.js";
 import logger from "./config/logger.js";
@@ -6,6 +8,21 @@ import billingScheduler from "./services/billing-scheduler.service.js";
 
 // Load environment variables
 dotenv.config();
+
+// Initialize Sentry before anything else
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    sendDefaultPii: true,
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+    integrations: [
+      expressIntegration(),
+      Sentry.httpIntegration(),
+    ],
+  });
+  logger.info("Sentry initialized");
+}
 
 const PORT = process.env.PORT || 4000;
 

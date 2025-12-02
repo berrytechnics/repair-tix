@@ -180,6 +180,7 @@ Common issues:
 | `ENCRYPTION_KEY` | Yes | Encryption key (32 chars) | (generate with openssl) |
 | `ALLOWED_ORIGINS` | Recommended | CORS allowed origins | `https://yourdomain.com` |
 | `IS_DOCKER` | Yes | Docker environment flag | `true` |
+| `SENTRY_DSN` | Optional | Sentry DSN for error tracking | `https://...@o4510454298902528.ingest.us.sentry.io/...` |
 
 ### Frontend Environment Variables
 
@@ -188,6 +189,8 @@ Common issues:
 | `NODE_ENV` | Yes | Environment mode | `production` |
 | `NEXT_PUBLIC_API_URL` | Yes | Backend API URL | `https://api.yourdomain.com/api` |
 | `NEXT_TELEMETRY_DISABLED` | Optional | Disable Next.js telemetry | `1` |
+| `NEXT_PUBLIC_SENTRY_DSN` | Optional | Sentry DSN for client-side error tracking | `https://...@o4510454298902528.ingest.us.sentry.io/...` |
+| `SENTRY_DSN` | Optional | Sentry DSN for server-side error tracking | `https://...@o4510454298902528.ingest.us.sentry.io/...` |
 
 ### Generating Secrets
 

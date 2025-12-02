@@ -2,6 +2,8 @@ import cors from "cors";
 import express, { Express, NextFunction, Request, Response } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import * as Sentry from "@sentry/node";
+import { setupExpressErrorHandler } from "@sentry/node";
 import { HttpError, ValidationError } from "./config/errors.js";
 import logger from "./config/logger.js";
 import { checkMaintenanceMode } from "./middlewares/maintenance.middleware.js";
@@ -73,15 +75,17 @@ const corsOptions = {
 };
 
 // Middleware
-// Configure helmet with CSP that allows localhost in development
+// Sentry Express integration is automatically set up via expressIntegration in server.ts
+
+// Configure helmet with CSP that allows localhost in development and Sentry
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         connectSrc: process.env.NODE_ENV === "production"
-          ? ["'self'"]
-          : ["'self'", "http://localhost:*", "ws://localhost:*", "http://127.0.0.1:*"],
+          ? ["'self'", "https://*.sentry.io"]
+          : ["'self'", "http://localhost:*", "ws://localhost:*", "http://127.0.0.1:*", "https://*.sentry.io"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for Next.js in dev
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
@@ -162,6 +166,11 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handling middleware
+// Sentry error handler must be before other error handlers
+if (process.env.SENTRY_DSN) {
+  setupExpressErrorHandler(app);
+}
+
 app.use((err: Error | HttpError, req: Request, res: Response, _next: NextFunction) => {
   // Log error with context
   logger.error("Error occurred", {
@@ -172,6 +181,23 @@ app.use((err: Error | HttpError, req: Request, res: Response, _next: NextFunctio
     ip: req.ip,
     userAgent: req.get("user-agent"),
   });
+  
+  // Send error to Sentry (only for non-validation errors and 500s)
+  if (process.env.SENTRY_DSN) {
+    const httpError = err instanceof HttpError ? err : new HttpError(err.message || "Internal Server Error", 500);
+    if (httpError.statusCode >= 500) {
+      Sentry.captureException(err, {
+        tags: {
+          path: req.path,
+          method: req.method,
+        },
+        extra: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
+    }
+  }
   
   // Convert regular Errors to HttpError
   const httpError = err instanceof HttpError 
