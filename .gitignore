@@ -1,5 +1,6 @@
 **/node_modules
 **/.env
+**/.env.production
 **/.next
 **/logs
 frontend/.next
@@ -9,3 +10,6 @@ backend/tests/Flashpost-tests
 planning/
 **/logs
 .ssh/
+**/backups
+*.sql.gz
+*.sql

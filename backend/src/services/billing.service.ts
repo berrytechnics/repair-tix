@@ -9,6 +9,7 @@ import { PaymentIntegrationConfig } from "../config/integrations.js";
 import credentialService from "./credential.service.js";
 import companyService from "./company.service.js";
 import { decryptCredentials } from "../utils/encryption.js";
+import { logBillingEvent, logSubscriptionChange } from "../middlewares/request-logger.middleware.js";
 import {
   CreateCustomerData,
   CreateSubscriptionData,
@@ -241,6 +242,12 @@ export class BillingService {
         .returningAll()
         .executeTakeFirst();
 
+      logSubscriptionChange(companyId, "updated", {
+        subscriptionId: existingSubscription.id,
+        monthlyAmount: amount,
+        cardId: cardId,
+      });
+      
       return toSubscription(updated!);
     } else {
       // Create new subscription
@@ -277,6 +284,12 @@ export class BillingService {
         .returningAll()
         .executeTakeFirstOrThrow();
 
+      logSubscriptionChange(companyId, "created", {
+        subscriptionId: subscription.id,
+        monthlyAmount: amount,
+        squareSubscriptionId: squareSubscription.subscriptionId,
+      });
+      
       return toSubscription(subscription);
     }
   }
@@ -308,6 +321,10 @@ export class BillingService {
       })
       .where("id", "=", subscription.id)
       .execute();
+    
+    logSubscriptionChange(companyId, "autopay_disabled", {
+      subscriptionId: subscription.id,
+    });
   }
 
   /**
@@ -343,6 +360,12 @@ export class BillingService {
         })
         .where("id", "=", subscription.id)
         .execute();
+      
+      logBillingEvent("location_billing_toggled", companyId, {
+        locationId,
+        isFree,
+        newMonthlyAmount: amount,
+      });
 
       // If subscription exists in Square, update it
       if (subscription.squareSubscriptionId) {

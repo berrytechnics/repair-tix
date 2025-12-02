@@ -62,6 +62,8 @@ router.post(
     const { email, password } = req.body;
     const user = await userService.authenticate(email, password);
     if (!user) {
+      const { logAuthFailure } = await import("../middlewares/request-logger.middleware.js");
+      logAuthFailure(req, "Invalid credentials", email);
       throw new UnauthorizedError("Invalid credentials");
     }
     

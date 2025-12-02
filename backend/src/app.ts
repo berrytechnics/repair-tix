@@ -6,6 +6,7 @@ import { HttpError, ValidationError } from "./config/errors.js";
 import logger from "./config/logger.js";
 import { checkMaintenanceMode } from "./middlewares/maintenance.middleware.js";
 import { apiLimiter } from "./middlewares/rate-limit.middleware.js";
+import { requestLogger } from "./middlewares/request-logger.middleware.js";
 import assetRoutes from "./routes/asset.routes.js";
 import companyRoutes from "./routes/company.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
@@ -34,59 +35,34 @@ const allowedOrigins = process.env.NODE_ENV === "production"
   ? process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()).filter(Boolean) || []
   : true; // Allow all origins in development
 
-// Log allowed origins in production for debugging
+// Log allowed origins in production for debugging (only log once at startup, not per request)
 if (process.env.NODE_ENV === "production") {
-  console.log("[CORS DEBUG] NODE_ENV:", process.env.NODE_ENV);
-  console.log("[CORS DEBUG] ALLOWED_ORIGINS env var:", process.env.ALLOWED_ORIGINS);
-  console.log("[CORS DEBUG] Parsed allowed origins:", allowedOrigins);
-  console.log("[CORS DEBUG] Allowed origins type:", typeof allowedOrigins);
-  console.log("[CORS DEBUG] Allowed origins is array:", Array.isArray(allowedOrigins));
-  logger.info("CORS allowed origins:", allowedOrigins);
+  logger.info("CORS allowed origins configured", { count: Array.isArray(allowedOrigins) ? allowedOrigins.length : 0 });
 }
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    console.log("[CORS DEBUG] Incoming request origin:", origin);
-    console.log("[CORS DEBUG] Request origin type:", typeof origin);
-    console.log("[CORS DEBUG] NODE_ENV:", process.env.NODE_ENV);
-    
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log("[CORS DEBUG] No origin header, allowing request");
       return callback(null, true);
     }
     
-    // In development, allow all origins
+    // In development/test, allow all origins
     if (process.env.NODE_ENV !== "production") {
-      console.log("[CORS DEBUG] Development mode, allowing all origins");
       return callback(null, true);
     }
     
     // In production, check against allowed origins
-    console.log("[CORS DEBUG] Production mode, checking against allowed origins");
-    console.log("[CORS DEBUG] Allowed origins array:", allowedOrigins);
-    console.log("[CORS DEBUG] Allowed origins length:", Array.isArray(allowedOrigins) ? allowedOrigins.length : "N/A");
-    
     if (Array.isArray(allowedOrigins) && allowedOrigins.length > 0) {
-      console.log("[CORS DEBUG] Checking if origin is in allowed list");
-      console.log("[CORS DEBUG] Request origin:", origin);
-      console.log("[CORS DEBUG] Allowed origins:", allowedOrigins);
-      console.log("[CORS DEBUG] Origin match:", allowedOrigins.includes(origin));
-      
       if (allowedOrigins.includes(origin)) {
-        console.log("[CORS DEBUG] ✓ Origin allowed:", origin);
         return callback(null, true);
       } else {
-        console.log("[CORS DEBUG] ✗ Origin BLOCKED:", origin);
-        console.log("[CORS DEBUG] Allowed origins were:", allowedOrigins.join(", "));
         logger.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(", ")}`);
         return callback(new Error("Not allowed by CORS"), false);
       }
     }
     
     // If no allowed origins configured in production, deny all
-    console.log("[CORS DEBUG] ✗ ERROR: No allowed origins configured!");
-    console.log("[CORS DEBUG] ALLOWED_ORIGINS env var:", process.env.ALLOWED_ORIGINS);
     logger.error("CORS: No allowed origins configured in production!");
     return callback(new Error("CORS not configured"), false);
   },
@@ -118,6 +94,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
+// Request logging middleware (after body parsing)
+app.use(requestLogger);
+
 // Apply rate limiting to all API routes
 app.use("/api", apiLimiter);
 
@@ -147,24 +126,31 @@ app.use("/api/system", systemRoutes);
 
 // Health check endpoint
 app.get("/health", async (req: Request, res: Response) => {
+  const startTime = Date.now();
   try {
     const { testConnection } = await import("./config/connection.js");
     const dbHealthy = await testConnection();
+    const responseTime = Date.now() - startTime;
     
     const healthStatus = {
       status: dbHealthy ? "ok" : "unhealthy",
       database: dbHealthy ? "connected" : "disconnected",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      responseTime: `${responseTime}ms`,
+      version: process.env.npm_package_version || "unknown",
+      environment: process.env.NODE_ENV || "unknown",
     };
     
     res.status(dbHealthy ? 200 : 503).json(healthStatus);
   } catch (error) {
+    const responseTime = Date.now() - startTime;
     logger.error("Health check failed:", error);
     res.status(503).json({
       status: "unhealthy",
       database: "error",
       timestamp: new Date().toISOString(),
+      responseTime: `${responseTime}ms`,
       error: process.env.NODE_ENV === "development" ? (error as Error).message : undefined,
     });
   }
