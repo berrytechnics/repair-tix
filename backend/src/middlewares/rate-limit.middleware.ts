@@ -5,11 +5,22 @@ import logger from "../config/logger.js";
  * General API rate limiter
  * Limits: 100 requests per 15 minutes per IP (production)
  *         Disabled in development and test environments
+ *         Public maintenance endpoint is exempt (read-only status check)
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  skip: () => process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development", // Skip rate limiting in test and development environments
+  skip: (req) => {
+    // Skip rate limiting in test and development environments
+    if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") {
+      return true;
+    }
+    // Skip rate limiting for public maintenance endpoint (read-only status check)
+    if (req.path === "/api/system/maintenance/public") {
+      return true;
+    }
+    return false;
+  },
   message: {
     success: false,
     error: {
