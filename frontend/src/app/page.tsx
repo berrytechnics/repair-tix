@@ -78,6 +78,17 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Launch Notice Banner */}
+      <section className="bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-700 dark:to-blue-900 text-white py-3">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-sm sm:text-base font-medium">
+              🚀 <span className="font-semibold">Launching Q1 2026</span> • Join our newsletter to be notified when we launch and get early access to transform your repair business.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-20 sm:py-28 lg:py-32">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
