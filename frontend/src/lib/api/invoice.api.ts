@@ -52,7 +52,6 @@ export interface CreateInvoiceData {
   customerId: string;
   ticketId?: string;
   status?: "draft" | "issued" | "paid" | "overdue" | "cancelled";
-  issueDate?: string;
   dueDate?: string;
   subtotal?: number;
   discountAmount?: number;
@@ -67,7 +66,6 @@ export interface UpdateInvoiceData {
   customerId?: string;
   ticketId?: string;
   status?: "draft" | "issued" | "paid" | "overdue" | "cancelled";
-  issueDate?: string;
   dueDate?: string;
   subtotal?: number;
   discountAmount?: number;

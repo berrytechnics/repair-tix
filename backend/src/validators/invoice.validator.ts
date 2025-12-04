@@ -34,10 +34,7 @@ export const createInvoiceValidation = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Total amount must be a non-negative number"),
-  body("issueDate")
-    .optional()
-    .isISO8601()
-    .withMessage("Issue date must be a valid ISO 8601 date"),
+  // Issue date is automatically set to creation date, not accepted in request
   body("dueDate")
     .optional()
     .isISO8601()
@@ -196,10 +193,7 @@ export const updateInvoiceValidation = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Total amount must be a non-negative number"),
-  body("issueDate")
-    .optional()
-    .isISO8601()
-    .withMessage("Issue date must be a valid ISO 8601 date"),
+  // Issue date is automatically set to creation date, not accepted in request
   body("dueDate")
     .optional()
     .isISO8601()

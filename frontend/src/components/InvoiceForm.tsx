@@ -32,6 +32,7 @@ interface InvoiceFormState {
   invoiceItems: InvoiceItem[];
   subtotal: number;
   discountAmount: number;
+  dueDate?: string;
   notes?: string;
 }
 
@@ -71,6 +72,7 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
     invoiceItems: [],
     subtotal: 0,
     discountAmount: 0,
+    dueDate: new Date().toISOString().split('T')[0], // Default to today
   });
 
   // Dropdown options
@@ -201,6 +203,7 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               invoiceItems: normalizedItems,
               subtotal: Number(response.data.subtotal || 0),
               discountAmount: Number(response.data.discountAmount || 0),
+              dueDate: response.data.dueDate ? new Date(response.data.dueDate).toISOString().split('T')[0] : undefined,
               notes: response.data.notes,
             }));
             // Store the stored totals from backend for use in edit mode
@@ -662,6 +665,7 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
         status: formData.status,
         subtotal,
         discountAmount: formData.discountAmount,
+        dueDate: formData.dueDate,
         notes: formData.notes,
         invoiceItems,
       };
@@ -759,6 +763,24 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Due Date */}
+        <div>
+          <label
+            htmlFor="dueDate"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Due Date {isEditMode ? "" : "(defaults to today)"}
+          </label>
+          <input
+            type="date"
+            id="dueDate"
+            name="dueDate"
+            value={formData.dueDate || ""}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 py-2 pl-3 pr-10 text-sm focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
+          />
         </div>
 
         {/* Invoice Items Section */}

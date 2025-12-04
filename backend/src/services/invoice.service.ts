@@ -378,6 +378,12 @@ export class InvoiceService {
     const discountAmount = data.discountAmount ?? 0;
     const totalAmount = data.totalAmount ?? subtotal + taxAmount - discountAmount;
 
+    // Issue date is always set to creation date (now)
+    // Due date defaults to creation date if not provided
+    const now = new Date();
+    const issueDate = now.toISOString();
+    const dueDate = data.dueDate ? new Date(data.dueDate).toISOString() : issueDate;
+
     const invoice = await db
       .insertInto("invoices")
       .values({
@@ -388,8 +394,8 @@ export class InvoiceService {
         customer_id: data.customerId,
         ticket_id: data.ticketId || null,
         status: data.status || "draft",
-        issue_date: data.issueDate ? new Date(data.issueDate).toISOString() : null,
-        due_date: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        issue_date: issueDate,
+        due_date: dueDate,
         paid_date: data.paidDate ? new Date(data.paidDate).toISOString() : null,
         subtotal: subtotal,
         tax_rate: taxRate,
@@ -474,11 +480,8 @@ export class InvoiceService {
     if (data.totalAmount !== undefined) {
       updateQuery = updateQuery.set({ total_amount: data.totalAmount });
     }
-    if (data.issueDate !== undefined) {
-      updateQuery = updateQuery.set({
-        issue_date: data.issueDate ? new Date(data.issueDate).toISOString() : null,
-      });
-    }
+    // Issue date is always set to creation date and cannot be changed
+    // Do not allow updates to issue_date
     if (data.dueDate !== undefined) {
       updateQuery = updateQuery.set({
         due_date: data.dueDate ? new Date(data.dueDate).toISOString() : null,
