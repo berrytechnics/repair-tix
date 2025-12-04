@@ -565,6 +565,7 @@ export default function InvoiceDetailPage({
 
   // Check if invoice can be edited
   const canEdit = invoice && (invoice.status === "draft" || invoice.status === "issued");
+  const canModifyDiscounts = hasPermission("invoices.modifyDiscounts");
 
   if (userLoading) {
     return (
@@ -1041,7 +1042,11 @@ export default function InvoiceDetailPage({
                                   setEditingItem({ ...editingItem, discountPercent: percent, discountAmount: amount });
                                 }}
                                 placeholder="%"
-                                className="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                disabled={!canModifyDiscounts}
+                                title={!canModifyDiscounts ? "You do not have permission to modify discounts" : ""}
+                                className={`w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                                  !canModifyDiscounts ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
                               />
                               <span className="self-center text-gray-500 dark:text-gray-400">/</span>
                               <input
@@ -1056,7 +1061,11 @@ export default function InvoiceDetailPage({
                                   setEditingItem({ ...editingItem, discountAmount: amount, discountPercent: percent });
                                 }}
                                 placeholder="$"
-                                className="w-24 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                disabled={!canModifyDiscounts}
+                                title={!canModifyDiscounts ? "You do not have permission to modify discounts" : ""}
+                                className={`w-24 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                                  !canModifyDiscounts ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
                               />
                             </div>
                           </td>

@@ -373,13 +373,14 @@ export class InventoryService {
       .execute();
 
     // Create junction table entries for all locations (all start with 0)
+    const now = new Date().toISOString();
     const junctionEntries = allLocations.map((loc) => ({
       id: uuidv4(),
       inventory_item_id: item.id,
       location_id: loc.id,
       quantity: 0,
-      created_at: sql`now()`,
-      updated_at: sql`now()`,
+      created_at: now,
+      updated_at: now,
     }));
 
     if (junctionEntries.length > 0) {

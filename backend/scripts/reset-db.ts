@@ -162,7 +162,7 @@ async function resetDatabase() {
         // Clear user_roles if it exists
         try {
           const urResult = await client.query(`DELETE FROM user_roles RETURNING id`);
-          if (urResult.rowCount > 0) {
+          if (urResult.rowCount && urResult.rowCount > 0) {
             console.log(`  ✓ Cleared ${urResult.rowCount} user role(s)`);
           }
         } catch (e) {

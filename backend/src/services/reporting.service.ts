@@ -107,7 +107,7 @@ export class ReportingService {
       const lowStockQuery = db
         .selectFrom("inventory_items")
         .innerJoin("inventory_location_quantities", "inventory_location_quantities.inventory_item_id", "inventory_items.id")
-        .select((eb) => eb.fn.count<number>(eb.fn.distinct("inventory_items.id")).as("count"))
+        .select(sql<number>`COUNT(DISTINCT inventory_items.id)`.as("count"))
         .where("inventory_items.company_id", "=", companyId)
         .where((eb) => 
           eb("inventory_location_quantities.quantity", "<", eb.ref("inventory_items.reorder_level"))

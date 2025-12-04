@@ -429,8 +429,9 @@ export class InventoryTransferService {
     }
 
     // Restore quantity to source location
-    await inventoryService.adjustQuantity(
+    await inventoryService.adjustQuantityForLocation(
       transfer.inventory_item_id,
+      transfer.from_location_id,
       transfer.quantity,
       companyId
     );

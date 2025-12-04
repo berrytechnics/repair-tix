@@ -10,7 +10,10 @@ export interface Location {
   email?: string;
   is_active: boolean;
   isFree?: boolean;
-  taxRate: number;
+  stateTax: number;
+  countyTax: number;
+  cityTax: number;
+  taxRate: number; // Computed: sum of stateTax + countyTax + cityTax
   taxName?: string | null;
   taxEnabled?: boolean;
   taxInclusive?: boolean;
@@ -25,7 +28,9 @@ export interface CreateLocationData {
   email?: string;
   isActive?: boolean;
   isFree?: boolean;
-  taxRate?: number;
+  stateTax?: number;
+  countyTax?: number;
+  cityTax?: number;
   taxName?: string;
   taxEnabled?: boolean;
   taxInclusive?: boolean;
@@ -38,7 +43,9 @@ export interface UpdateLocationData {
   email?: string;
   isActive?: boolean;
   isFree?: boolean;
-  taxRate?: number;
+  stateTax?: number;
+  countyTax?: number;
+  cityTax?: number;
   taxName?: string;
   taxEnabled?: boolean;
   taxInclusive?: boolean;

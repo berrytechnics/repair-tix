@@ -13,3 +13,4 @@ planning/
 **/backups
 *.sql.gz
 *.sql
+ci-test.log

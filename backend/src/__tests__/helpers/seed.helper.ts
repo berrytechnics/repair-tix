@@ -65,7 +65,9 @@ export async function createTestLocation(
       email: overrides?.email || null,
       is_active: overrides?.isActive !== undefined ? overrides.isActive : true,
       is_free: false,
-      tax_rate: 0,
+      state_tax: 0,
+      county_tax: 0,
+      city_tax: 0,
       tax_name: "Tax",
       tax_enabled: false,
       tax_inclusive: false,
@@ -535,13 +537,14 @@ export async function createTestInventoryItem(
 
   // Create junction table entries for all locations
   const initialQuantity = overrides?.quantity ?? 100;
+  const now = new Date().toISOString();
   const junctionEntries = allLocations.map((loc) => ({
     id: uuidv4(),
     inventory_item_id: itemId,
     location_id: loc.id,
     quantity: loc.id === locationId ? initialQuantity : 0,
-    created_at: sql`now()`,
-    updated_at: sql`now()`,
+    created_at: now,
+    updated_at: now,
   }));
 
   if (junctionEntries.length > 0) {

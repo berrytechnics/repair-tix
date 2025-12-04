@@ -5,6 +5,17 @@ import { cleanupTestData } from "../helpers/db.helper.js";
 import { createTestCompany, createTestCustomer, createTestInvoice, createTestInvoiceItem, createTestTicket, createTestInventoryItem } from "../helpers/seed.helper.js";
 import { createTestUsersWithRoles, createAuthenticatedUser, getAuthHeader } from "../helpers/auth.helper.js";
 
+// Helper function to get quantity at a specific location
+async function getQuantityAtLocation(itemId: string, locationId: string): Promise<number> {
+  const result = await db
+    .selectFrom("inventory_location_quantities")
+    .select("quantity")
+    .where("inventory_item_id", "=", itemId)
+    .where("location_id", "=", locationId)
+    .executeTakeFirst();
+  return result?.quantity ?? 0;
+}
+
 describe("Invoice Routes Integration Tests", () => {
   let testCompanyId: string;
   let testUserIds: string[] = [];
@@ -563,13 +574,8 @@ describe("Invoice Routes Integration Tests", () => {
       });
 
       // Get initial quantity
-      const initialInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-
-      expect(initialInventory.quantity).toBe(100);
+      const initialQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(initialQuantity).toBe(100);
 
       // Create invoice item with inventory
       const itemData = {
@@ -589,13 +595,8 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.body.success).toBe(true);
 
       // Verify inventory was deducted
-      const updatedInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-
-      expect(updatedInventory.quantity).toBe(95); // 100 - 5 = 95
+      const updatedQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(updatedQuantity).toBe(95); // 100 - 5 = 95
     });
 
     it("should not deduct inventory for service-type items", async () => {
@@ -612,11 +613,7 @@ describe("Invoice Routes Integration Tests", () => {
         trackQuantity: true,
       });
 
-      const initialInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
+      const initialQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
 
       // Create service item (should not deduct inventory)
       const itemData = {
@@ -635,13 +632,8 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.status).toBe(201);
 
       // Verify inventory was NOT deducted
-      const updatedInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-
-      expect(updatedInventory.quantity).toBe(initialInventory.quantity);
+      const updatedQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(updatedQuantity).toBe(initialQuantity);
     });
 
     it("should not deduct inventory if track_quantity is false", async () => {
@@ -666,11 +658,7 @@ describe("Invoice Routes Integration Tests", () => {
         .where("id", "=", inventoryItemId)
         .execute();
 
-      const initialInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
+      const initialQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
 
       // Create invoice item
       const itemData = {
@@ -689,13 +677,8 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.status).toBe(201);
 
       // Verify inventory was NOT deducted
-      const updatedInventory = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-
-      expect(updatedInventory.quantity).toBe(initialInventory.quantity);
+      const updatedQuantity = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(updatedQuantity).toBe(initialQuantity);
     });
 
     it("should restore inventory when deleting invoice item", async () => {
@@ -729,12 +712,8 @@ describe("Invoice Routes Integration Tests", () => {
       testInvoiceItemIds.push(itemId);
 
       // Verify inventory was deducted
-      const afterCreate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-      expect(afterCreate.quantity).toBe(95);
+      const quantityAfterCreate = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(quantityAfterCreate).toBe(95);
 
       // Delete invoice item
       const response = await request(app)
@@ -744,12 +723,8 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.status).toBe(200);
 
       // Verify inventory was restored
-      const afterDelete = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-      expect(afterDelete.quantity).toBe(100); // 95 + 5 = 100
+      const quantityAfterDelete = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(quantityAfterDelete).toBe(100); // 95 + 5 = 100
     });
 
     it("should adjust inventory when updating invoice item quantity", async () => {
@@ -783,12 +758,8 @@ describe("Invoice Routes Integration Tests", () => {
       testInvoiceItemIds.push(itemId);
 
       // Verify initial deduction
-      const afterCreate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-      expect(afterCreate.quantity).toBe(95);
+      const quantityAfterCreate = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(quantityAfterCreate).toBe(95);
 
       // Update quantity to 8 (should restore 5, deduct 8)
       const response = await request(app)
@@ -799,12 +770,8 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.status).toBe(200);
 
       // Verify inventory adjustment: 95 + 5 - 8 = 92
-      const afterUpdate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirstOrThrow();
-      expect(afterUpdate.quantity).toBe(92);
+      const quantityAfterUpdate = await getQuantityAtLocation(inventoryItemId, testLocationId);
+      expect(quantityAfterUpdate).toBe(92);
     });
 
     it("should handle inventory adjustment when changing inventory item", async () => {
@@ -843,12 +810,8 @@ describe("Invoice Routes Integration Tests", () => {
       testInvoiceItemIds.push(itemId);
 
       // Verify first item was deducted
-      const item1AfterCreate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItem1Id)
-        .executeTakeFirstOrThrow();
-      expect(item1AfterCreate.quantity).toBe(95);
+      const item1QuantityAfterCreate = await getQuantityAtLocation(inventoryItem1Id, testLocationId);
+      expect(item1QuantityAfterCreate).toBe(95);
 
       // Change to second inventory item
       const response = await request(app)
@@ -859,19 +822,11 @@ describe("Invoice Routes Integration Tests", () => {
       expect(response.status).toBe(200);
 
       // Verify first item was restored, second item was deducted
-      const item1AfterUpdate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItem1Id)
-        .executeTakeFirstOrThrow();
-      expect(item1AfterUpdate.quantity).toBe(100); // Restored
+      const item1QuantityAfterUpdate = await getQuantityAtLocation(inventoryItem1Id, testLocationId);
+      expect(item1QuantityAfterUpdate).toBe(100); // Restored
 
-      const item2AfterUpdate = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItem2Id)
-        .executeTakeFirstOrThrow();
-      expect(item2AfterUpdate.quantity).toBe(47); // 50 - 3 = 47
+      const item2QuantityAfterUpdate = await getQuantityAtLocation(inventoryItem2Id, testLocationId);
+      expect(item2QuantityAfterUpdate).toBe(47); // 50 - 3 = 47
     });
   });
 

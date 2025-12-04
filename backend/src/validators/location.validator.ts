@@ -37,10 +37,45 @@ export const createLocationValidation = [
     .optional()
     .isBoolean()
     .withMessage("isFree must be a boolean"),
-  body("taxRate")
+  body("stateTax")
     .optional()
     .isFloat({ min: 0, max: 100 })
-    .withMessage("Tax rate must be between 0 and 100"),
+    .withMessage("State tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("State tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
+  body("countyTax")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("County tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("County tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
+  body("cityTax")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("City tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("City tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
 ];
 
 /**
@@ -79,10 +114,45 @@ export const updateLocationValidation = [
     .optional()
     .isBoolean()
     .withMessage("isFree must be a boolean"),
-  body("taxRate")
+  body("stateTax")
     .optional()
     .isFloat({ min: 0, max: 100 })
-    .withMessage("Tax rate must be between 0 and 100"),
+    .withMessage("State tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("State tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
+  body("countyTax")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("County tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("County tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
+  body("cityTax")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("City tax must be between 0 and 100")
+    .custom((value) => {
+      if (value !== undefined && value !== null) {
+        const decimalPlaces = (value.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 3) {
+          throw new Error("City tax must have at most 3 decimal places");
+        }
+      }
+      return true;
+    }),
 ];
 
 

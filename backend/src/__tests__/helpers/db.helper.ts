@@ -43,9 +43,11 @@ export async function cleanupTestData(testIds: {
       .execute();
   }
   // Delete all inventory items for locations we're cleaning up
+  // Note: inventory_items doesn't have location_id directly, but we can delete via junction table
   if (testIds.locationIds && testIds.locationIds.length > 0) {
+    // Delete junction table entries first
     await db
-      .deleteFrom("inventory_items")
+      .deleteFrom("inventory_location_quantities")
       .where("location_id", "in", testIds.locationIds)
       .execute();
   }

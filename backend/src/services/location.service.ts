@@ -12,7 +12,9 @@ export interface CreateLocationDto {
   email?: string;
   isActive?: boolean;
   isFree?: boolean;
-  taxRate?: number;
+  stateTax?: number;
+  countyTax?: number;
+  cityTax?: number;
   taxName?: string;
   taxEnabled?: boolean;
   taxInclusive?: boolean;
@@ -25,17 +27,22 @@ export interface UpdateLocationDto {
   email?: string;
   isActive?: boolean;
   isFree?: boolean;
-  taxRate?: number;
+  stateTax?: number;
+  countyTax?: number;
+  cityTax?: number;
   taxName?: string;
   taxEnabled?: boolean;
   taxInclusive?: boolean;
 }
 
 // Output type
-export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at" | "tax_rate" | "tax_name" | "tax_enabled" | "tax_inclusive" | "is_free"> & {
+export type Location = Omit<LocationTable, "id" | "company_id" | "created_at" | "updated_at" | "deleted_at" | "state_tax" | "county_tax" | "city_tax" | "tax_name" | "tax_enabled" | "tax_inclusive" | "is_free"> & {
   id: string;
   company_id: string;
-  taxRate: number;
+  stateTax: number;
+  countyTax: number;
+  cityTax: number;
+  taxRate: number; // Computed: sum of stateTax + countyTax + cityTax
   taxName: string | null;
   taxEnabled: boolean;
   taxInclusive: boolean;
@@ -54,7 +61,9 @@ function toLocation(location: {
   email: string | null;
   is_active: boolean;
   is_free: boolean;
-  tax_rate: number;
+  state_tax: number;
+  county_tax: number;
+  city_tax: number;
   tax_name: string | null;
   tax_enabled: boolean;
   tax_inclusive: boolean;
@@ -62,6 +71,11 @@ function toLocation(location: {
   updated_at: Date;
   deleted_at: Date | null;
 }): Location {
+  const stateTax = Number(location.state_tax || 0);
+  const countyTax = Number(location.county_tax || 0);
+  const cityTax = Number(location.city_tax || 0);
+  const taxRate = stateTax + countyTax + cityTax;
+  
   return {
     id: location.id as unknown as string,
     company_id: location.company_id as unknown as string,
@@ -71,7 +85,10 @@ function toLocation(location: {
     email: location.email,
     is_active: location.is_active,
     isFree: location.is_free,
-    taxRate: Number(location.tax_rate),
+    stateTax,
+    countyTax,
+    cityTax,
+    taxRate,
     taxName: location.tax_name,
     taxEnabled: location.tax_enabled,
     taxInclusive: location.tax_inclusive,
@@ -84,7 +101,25 @@ export class LocationService {
   async findAll(companyId: string, includeRestricted = false): Promise<Location[]> {
     const locations = await db
       .selectFrom("locations")
-      .selectAll()
+      .select([
+        "id",
+        "company_id",
+        "name",
+        "address",
+        "phone",
+        "email",
+        "is_active",
+        "is_free",
+        "state_tax",
+        "county_tax",
+        "city_tax",
+        "tax_name",
+        "tax_enabled",
+        "tax_inclusive",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+      ])
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
       .orderBy("created_at", "asc")
@@ -134,7 +169,25 @@ export class LocationService {
   async findById(id: string, companyId: string, includeRestricted = false): Promise<Location | null> {
     const location = await db
       .selectFrom("locations")
-      .selectAll()
+      .select([
+        "id",
+        "company_id",
+        "name",
+        "address",
+        "phone",
+        "email",
+        "is_active",
+        "is_free",
+        "state_tax",
+        "county_tax",
+        "city_tax",
+        "tax_name",
+        "tax_enabled",
+        "tax_inclusive",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+      ])
       .where("id", "=", id)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
@@ -190,7 +243,9 @@ export class LocationService {
         email: data.email || null,
         is_active: data.isActive !== undefined ? data.isActive : true,
         is_free: isFree,
-        tax_rate: data.taxRate !== undefined ? data.taxRate : 0,
+        state_tax: data.stateTax !== undefined ? data.stateTax : 0,
+        county_tax: data.countyTax !== undefined ? data.countyTax : 0,
+        city_tax: data.cityTax !== undefined ? data.cityTax : 0,
         tax_name: data.taxName || "Sales Tax",
         tax_enabled: data.taxEnabled !== undefined ? data.taxEnabled : true,
         tax_inclusive: data.taxInclusive !== undefined ? data.taxInclusive : false,
@@ -210,13 +265,14 @@ export class LocationService {
       .execute();
 
     if (allInventoryItems.length > 0) {
+      const now = new Date().toISOString();
       const junctionEntries = allInventoryItems.map((item) => ({
         id: uuidv4(),
         inventory_item_id: item.id,
         location_id: location.id,
         quantity: 0,
-        created_at: sql`now()`,
-        updated_at: sql`now()`,
+        created_at: now,
+        updated_at: now,
       }));
 
       await db
@@ -269,8 +325,14 @@ export class LocationService {
     if (data.isFree !== undefined) {
       updateQuery = updateQuery.set({ is_free: data.isFree });
     }
-    if (data.taxRate !== undefined) {
-      updateQuery = updateQuery.set({ tax_rate: data.taxRate });
+    if (data.stateTax !== undefined) {
+      updateQuery = updateQuery.set({ state_tax: data.stateTax });
+    }
+    if (data.countyTax !== undefined) {
+      updateQuery = updateQuery.set({ county_tax: data.countyTax });
+    }
+    if (data.cityTax !== undefined) {
+      updateQuery = updateQuery.set({ city_tax: data.cityTax });
     }
     if (data.taxName !== undefined) {
       updateQuery = updateQuery.set({ tax_name: data.taxName || null });
@@ -300,7 +362,25 @@ export class LocationService {
     // Get all locations for this company to find the first one
     const allLocations = await db
       .selectFrom("locations")
-      .selectAll()
+      .select([
+        "id",
+        "company_id",
+        "name",
+        "address",
+        "phone",
+        "email",
+        "is_active",
+        "is_free",
+        "state_tax",
+        "county_tax",
+        "city_tax",
+        "tax_name",
+        "tax_enabled",
+        "tax_inclusive",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+      ])
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
       .orderBy("created_at", "asc")

@@ -45,7 +45,7 @@ router.get(
     
     // Filter to items with quantity > 0 if inStock is true
     if (inStock) {
-      items = items.filter((item) => item.quantity > 0);
+      items = items.filter((item) => (item.quantity ?? 0) > 0);
     }
     
     res.json({ success: true, data: items });

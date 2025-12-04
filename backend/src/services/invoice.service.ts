@@ -358,7 +358,7 @@ export class InvoiceService {
     // Verify location belongs to company and get tax rate
     const location = await db
       .selectFrom("locations")
-      .select(["id", "tax_rate"])
+      .select(["id", "state_tax", "county_tax", "city_tax"])
       .where("id", "=", locationId)
       .where("company_id", "=", companyId)
       .where("deleted_at", "is", null)
@@ -372,7 +372,11 @@ export class InvoiceService {
     const invoiceNumber = await generateInvoiceNumber(companyId);
 
     const subtotal = data.subtotal ?? 0;
-    const taxRate = Number(location.tax_rate);
+    // Sum all three tax rates
+    const stateTax = Number(location.state_tax || 0);
+    const countyTax = Number(location.county_tax || 0);
+    const cityTax = Number(location.city_tax || 0);
+    const taxRate = stateTax + countyTax + cityTax;
     // Tax will be recalculated based on taxable items when items are added
     const taxAmount = data.taxAmount ?? 0;
     const discountAmount = data.discountAmount ?? 0;
@@ -591,14 +595,18 @@ export class InvoiceService {
     if (invoice.location_id) {
       const location = await db
         .selectFrom("locations")
-        .select(["tax_rate", "tax_enabled", "tax_inclusive"])
+        .select(["state_tax", "county_tax", "city_tax", "tax_enabled", "tax_inclusive"])
         .where("id", "=", invoice.location_id)
         .where("company_id", "=", companyId)
         .where("deleted_at", "is", null)
         .executeTakeFirst();
 
       if (location) {
-        taxRate = Number(location.tax_rate);
+        // Sum all three tax rates
+        const stateTax = Number(location.state_tax || 0);
+        const countyTax = Number(location.county_tax || 0);
+        const cityTax = Number(location.city_tax || 0);
+        taxRate = stateTax + countyTax + cityTax;
         taxEnabled = location.tax_enabled ?? true;
         taxInclusive = location.tax_inclusive ?? false;
       }

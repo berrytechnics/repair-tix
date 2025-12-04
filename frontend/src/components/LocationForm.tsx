@@ -29,7 +29,9 @@ export default function LocationForm({ locationId }: LocationFormProps) {
     phone: "",
     email: "",
     isActive: true,
-    taxRate: 0,
+    stateTax: 0,
+    countyTax: 0,
+    cityTax: 0,
     taxName: "Sales Tax",
     taxEnabled: true,
     taxInclusive: false,
@@ -74,7 +76,9 @@ export default function LocationForm({ locationId }: LocationFormProps) {
               phone: response.data.phone || "",
               email: response.data.email || "",
               isActive: response.data.is_active,
-              taxRate: response.data.taxRate || 0,
+              stateTax: response.data.stateTax || 0,
+              countyTax: response.data.countyTax || 0,
+              cityTax: response.data.cityTax || 0,
               taxName: response.data.taxName || "Sales Tax",
               taxEnabled: response.data.taxEnabled !== undefined ? response.data.taxEnabled : true,
               taxInclusive: response.data.taxInclusive !== undefined ? response.data.taxInclusive : false,
@@ -184,8 +188,14 @@ export default function LocationForm({ locationId }: LocationFormProps) {
       cleanFormData.isActive = formData.isActive;
       
       // Include tax settings
-      if (formData.taxRate !== undefined) {
-        cleanFormData.taxRate = formData.taxRate;
+      if (formData.stateTax !== undefined) {
+        cleanFormData.stateTax = formData.stateTax;
+      }
+      if (formData.countyTax !== undefined) {
+        cleanFormData.countyTax = formData.countyTax;
+      }
+      if (formData.cityTax !== undefined) {
+        cleanFormData.cityTax = formData.cityTax;
       }
       if (formData.taxName !== undefined) {
         cleanFormData.taxName = formData.taxName;
@@ -373,36 +383,92 @@ export default function LocationForm({ locationId }: LocationFormProps) {
             </p>
           </div>
 
-        <div>
-          <label
-            htmlFor="taxRate"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Tax Rate (%)
-          </label>
-          <input
-            type="number"
-            id="taxRate"
-            name="taxRate"
-            value={formData.taxRate || 0}
-            onChange={handleChange}
-            min="0"
-            max="100"
-            step="0.01"
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 ${
-              errors.taxRate
-                ? "border-red-500 dark:border-red-600"
-                : "border-gray-300 dark:border-gray-600"
-            }`}
-            placeholder="0.00"
-          />
-          {errors.taxRate && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.taxRate}</p>
-          )}
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Tax rate percentage (0-100)
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label
+              htmlFor="stateTax"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              State Tax (%)
+            </label>
+            <input
+              type="number"
+              id="stateTax"
+              name="stateTax"
+              value={formData.stateTax || 0}
+              onChange={handleChange}
+              min="0"
+              max="100"
+              step="0.001"
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 ${
+                errors.stateTax
+                  ? "border-red-500 dark:border-red-600"
+                  : "border-gray-300 dark:border-gray-600"
+              }`}
+              placeholder="0.000"
+            />
+            {errors.stateTax && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.stateTax}</p>
+            )}
           </div>
+          <div>
+            <label
+              htmlFor="countyTax"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              County Tax (%)
+            </label>
+            <input
+              type="number"
+              id="countyTax"
+              name="countyTax"
+              value={formData.countyTax || 0}
+              onChange={handleChange}
+              min="0"
+              max="100"
+              step="0.001"
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 ${
+                errors.countyTax
+                  ? "border-red-500 dark:border-red-600"
+                  : "border-gray-300 dark:border-gray-600"
+              }`}
+              placeholder="0.000"
+            />
+            {errors.countyTax && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.countyTax}</p>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor="cityTax"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              City Tax (%)
+            </label>
+            <input
+              type="number"
+              id="cityTax"
+              name="cityTax"
+              value={formData.cityTax || 0}
+              onChange={handleChange}
+              min="0"
+              max="100"
+              step="0.001"
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 ${
+                errors.cityTax
+                  ? "border-red-500 dark:border-red-600"
+                  : "border-gray-300 dark:border-gray-600"
+              }`}
+              placeholder="0.000"
+            />
+            {errors.cityTax && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cityTax}</p>
+            )}
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Total Tax Rate: {((formData.stateTax || 0) + (formData.countyTax || 0) + (formData.cityTax || 0)).toFixed(3)}%
+        </div>
         </div>
 
         <div className="mt-4 space-y-3">

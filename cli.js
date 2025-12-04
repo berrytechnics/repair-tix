@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { program } = require("commander");
-const { execSync, spawn } = require("child_process");
+const { execSync, spawnSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const package = require("./package.json");
@@ -24,15 +24,81 @@ function log(message, color = "reset") {
 function executeCommand(command, options = {}) {
   try {
     log(`Executing: ${command}`, "green");
-    const output = execSync(command, {
-      stdio: options.stdio || "inherit",
-      cwd: options.cwd || process.cwd(),
-    });
-    if (options.stdio === "pipe") {
-      return output.toString().trim();
+    
+    // If logFile is specified, write output to file
+    if (options.logFile) {
+      const logPath = path.isAbsolute(options.logFile) 
+        ? options.logFile 
+        : path.join(process.cwd(), options.logFile);
+      
+      // Write command header to log file
+      fs.appendFileSync(logPath, `\n${"=".repeat(80)}\n`);
+      fs.appendFileSync(logPath, `[${new Date().toISOString()}] Executing: ${command}\n`);
+      fs.appendFileSync(logPath, `${"=".repeat(80)}\n\n`);
+      
+      // Use spawnSync to capture both stdout and stderr synchronously
+      // This is necessary because Jest writes to stderr, and execSync only captures stderr on error
+      const [cmd, ...args] = command.split(" ");
+      
+      const result = spawnSync(cmd, args, {
+        cwd: options.cwd || process.cwd(),
+        shell: true,
+        stdio: ["inherit", "pipe", "pipe"],
+        encoding: "utf8",
+      });
+      
+      const stdout = result.stdout || "";
+      const stderr = result.stderr || "";
+      
+      // Combine stdout and stderr (Jest writes to stderr)
+      const combinedOutput = stdout + (stderr ? stderr : "");
+      
+      // Write output to log file
+      if (combinedOutput) {
+        fs.appendFileSync(logPath, combinedOutput);
+      }
+      
+      // Also show output in console
+      if (stdout) process.stdout.write(stdout);
+      if (stderr) process.stderr.write(stderr);
+      
+      // Check exit code
+      if (result.status !== 0) {
+        const error = new Error(`Command failed with exit code ${result.status}`);
+        error.stdout = stdout;
+        error.stderr = stderr;
+        throw error;
+      }
+      
+      return true;
+    } else {
+      // Normal execution without logging
+      const output = execSync(command, {
+        stdio: options.stdio || "inherit",
+        cwd: options.cwd || process.cwd(),
+      });
+      if (options.stdio === "pipe") {
+        return output.toString().trim();
+      }
+      return true;
     }
-    return true;
   } catch (error) {
+    // Write error to log file if specified
+    if (options.logFile) {
+      const logPath = path.isAbsolute(options.logFile) 
+        ? options.logFile 
+        : path.join(process.cwd(), options.logFile);
+      fs.appendFileSync(logPath, `\n[ERROR] ${error.message}\n`);
+      if (error.stdout) {
+        fs.appendFileSync(logPath, `\n--- STDOUT ---\n${error.stdout.toString()}\n`);
+        process.stdout.write(error.stdout.toString());
+      }
+      if (error.stderr) {
+        fs.appendFileSync(logPath, `\n--- STDERR ---\n${error.stderr.toString()}\n`);
+        process.stderr.write(error.stderr.toString());
+      }
+    }
+    
     if (options.ignoreError) {
       log(`Command failed but continuing: ${error.message}`, "yellow");
       return false;
@@ -564,6 +630,16 @@ program
         }
       } else {
         log("Running backend CI checks...", "green");
+        
+        // Setup log file (overwrite on each run)
+        const logFile = "ci-test.log";
+        const logPath = path.join(process.cwd(), logFile);
+        
+        // Clear/create log file
+        fs.writeFileSync(logPath, `CI Test Run - ${new Date().toISOString()}\n`);
+        fs.appendFileSync(logPath, `${"=".repeat(80)}\n\n`);
+        log(`Writing test output to ${logFile}`, "blue");
+        
         const checks = [
           { cmd: "yarn lint", name: "Linting" },
           { cmd: "npx tsc --noEmit", name: "Type checking" },
@@ -587,20 +663,26 @@ program
           log(`Running ${check.name}...`, "blue");
           if (check.useTestSetup) {
             // Use test setup script for tests (matches GitHub Actions)
+            // Write to log file for test runs
             executeCommand(check.cmd, {
               cwd: path.join(process.cwd(), "backend"),
+              logFile: check.name === "Tests" ? logFile : undefined,
             });
           } else if (isContainerRunning("repair-tix-api")) {
-            executeCommand(`docker exec repair-tix-api ${check.cmd}`);
+            executeCommand(`docker exec repair-tix-api ${check.cmd}`, {
+              logFile: check.name === "Tests" ? logFile : undefined,
+            });
           } else {
             executeCommand(check.cmd, {
               cwd: path.join(process.cwd(), "backend"),
+              logFile: check.name === "Tests" ? logFile : undefined,
             });
           }
         }
         
         // Only reached if all checks passed (executeCommand exits on failure)
         log("All CI checks passed!", "green");
+        log(`Test output saved to ${logFile}`, "green");
       }
     }
   });

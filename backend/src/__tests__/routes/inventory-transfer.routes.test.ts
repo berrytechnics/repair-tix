@@ -11,6 +11,17 @@ import {
 import { createTestUsersWithRoles, getAuthHeader, createAuthenticatedUser } from "../helpers/auth.helper.js";
 import { db } from "../../config/connection.js";
 
+// Helper function to get quantity for an inventory item at a specific location
+async function getQuantityAtLocation(inventoryItemId: string, locationId: string): Promise<number> {
+  const result = await db
+    .selectFrom("inventory_location_quantities")
+    .select("quantity")
+    .where("inventory_item_id", "=", inventoryItemId)
+    .where("location_id", "=", locationId)
+    .executeTakeFirst();
+  return result?.quantity ?? 0;
+}
+
 describe("Inventory Transfer Routes Integration Tests", () => {
   let testCompanyId: string;
   let testCompany2Id: string;
@@ -414,12 +425,8 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       }
 
       // Verify quantity was deducted from source location
-      const itemAfter = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfter?.quantity).toBe(90); // 100 - 10
+      const quantityAfter = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityAfter).toBe(90); // 100 - 10
     });
 
     it("should create transfer (admin role)", async () => {
@@ -634,7 +641,7 @@ describe("Inventory Transfer Routes Integration Tests", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain("Inventory item is not at the source location");
+      expect(response.body.error.message).toContain("Insufficient quantity");
     });
 
     it("should validate sufficient quantity available", async () => {
@@ -690,12 +697,8 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       }
 
       // Verify quantity was deducted
-      const itemAfter = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfter?.quantity).toBe(75); // 100 - 25
+      const quantityAfter = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityAfter).toBe(75); // 100 - 25
     });
 
     it("should set status to pending", async () => {
@@ -751,14 +754,9 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       const transferId = createResponse.body.data.id;
       testInventoryTransferIds.push(transferId);
 
-      // Verify quantity was deducted
-      const itemBeforeComplete = await db
-        .selectFrom("inventory_items")
-        .select(["quantity", "location_id"])
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemBeforeComplete?.quantity).toBe(80); // 100 - 20
-      expect(itemBeforeComplete?.location_id).toBe(testLocation1Id);
+      // Verify quantity was deducted from source location
+      const quantityBeforeComplete = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityBeforeComplete).toBe(80); // 100 - 20
 
       // Complete transfer
       const response = await request(app)
@@ -769,14 +767,11 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.status).toBe("completed");
 
-      // Verify item moved to destination location and quantity restored
-      const itemAfterComplete = await db
-        .selectFrom("inventory_items")
-        .select(["quantity", "location_id"])
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfterComplete?.location_id).toBe(testLocation2Id);
-      expect(itemAfterComplete?.quantity).toBe(100); // Quantity restored (80 + 20 = 100)
+      // Verify quantity moved to destination location
+      const quantityAtSourceAfter = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      const quantityAtDestAfter = await getQuantityAtLocation(inventoryItemId, testLocation2Id);
+      expect(quantityAtSourceAfter).toBe(80); // Still 80 at source (deducted)
+      expect(quantityAtDestAfter).toBe(20); // 20 added to destination
     });
 
     it("should complete pending transfer (admin role)", async () => {
@@ -963,14 +958,9 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       const transferId = createResponse.body.data.id;
       testInventoryTransferIds.push(transferId);
 
-      // Verify quantity was deducted
-      const itemBeforeComplete = await db
-        .selectFrom("inventory_items")
-        .select(["quantity", "location_id"])
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemBeforeComplete?.quantity).toBe(70); // 100 - 30
-      expect(itemBeforeComplete?.location_id).toBe(testLocation1Id);
+      // Verify quantity was deducted from source location
+      const quantityBeforeComplete = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityBeforeComplete).toBe(70); // 100 - 30
 
       // Complete transfer
       const response = await request(app)
@@ -980,14 +970,11 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       expect(response.status).toBe(200);
       expect(response.body.data.status).toBe("completed");
 
-      // Verify item moved to destination and quantity restored
-      const itemAfterComplete = await db
-        .selectFrom("inventory_items")
-        .select(["quantity", "location_id"])
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfterComplete?.location_id).toBe(testLocation2Id);
-      expect(itemAfterComplete?.quantity).toBe(100); // Quantity restored (70 + 30 = 100)
+      // Verify quantity moved to destination location
+      const quantityAtSourceAfter = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      const quantityAtDestAfter = await getQuantityAtLocation(inventoryItemId, testLocation2Id);
+      expect(quantityAtSourceAfter).toBe(70); // Still 70 at source (deducted)
+      expect(quantityAtDestAfter).toBe(30); // 30 added to destination
     });
   });
 
@@ -1014,13 +1001,9 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       const transferId = createResponse.body.data.id;
       testInventoryTransferIds.push(transferId);
 
-      // Verify quantity was deducted
-      const itemBeforeCancel = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemBeforeCancel?.quantity).toBe(75); // 100 - 25
+      // Verify quantity was deducted from source location
+      const quantityBeforeCancel = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityBeforeCancel).toBe(75); // 100 - 25
 
       // Cancel transfer
       const response = await request(app)
@@ -1031,13 +1014,9 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.status).toBe("cancelled");
 
-      // Verify quantity was restored
-      const itemAfterCancel = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfterCancel?.quantity).toBe(100); // Restored to original
+      // Verify quantity was restored to source location
+      const quantityAfterCancel = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityAfterCancel).toBe(100); // Restored to original
     });
 
     it("should cancel pending transfer (admin role)", async () => {
@@ -1223,26 +1202,18 @@ describe("Inventory Transfer Routes Integration Tests", () => {
       const transferId = createResponse.body.data.id;
       testInventoryTransferIds.push(transferId);
 
-      // Verify quantity was deducted
-      const itemBeforeCancel = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemBeforeCancel?.quantity).toBe(80);
+      // Verify quantity was deducted from source location
+      const quantityBeforeCancel = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityBeforeCancel).toBe(80);
 
       // Cancel transfer
       await request(app)
         .post(`/api/inventory-transfers/${transferId}/cancel`)
         .set(getAuthHeader(managerToken));
 
-      // Verify quantity restored
-      const itemAfterCancel = await db
-        .selectFrom("inventory_items")
-        .select("quantity")
-        .where("id", "=", inventoryItemId)
-        .executeTakeFirst();
-      expect(itemAfterCancel?.quantity).toBe(100);
+      // Verify quantity restored to source location
+      const quantityAfterCancel = await getQuantityAtLocation(inventoryItemId, testLocation1Id);
+      expect(quantityAfterCancel).toBe(100);
     });
   });
 });

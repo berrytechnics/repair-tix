@@ -269,7 +269,9 @@ export interface LocationTable {
   address: string | null;
   phone: string | null;
   email: string | null;
-  tax_rate: number;
+  state_tax: number;
+  county_tax: number;
+  city_tax: number;
   tax_name: string | null;
   tax_enabled: boolean;
   tax_inclusive: boolean;
