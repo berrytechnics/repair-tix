@@ -5,20 +5,20 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { Customer, getCustomers } from "@/lib/api/customer.api";
 
-import { Ticket, getTickets, getTicketById } from "@/lib/api/ticket.api";
-import { useUser } from "@/lib/UserContext";
 import { getLocationById, Location } from "@/lib/api/location.api";
+import { getTicketById, getTickets, Ticket } from "@/lib/api/ticket.api";
+import { useUser } from "@/lib/UserContext";
 
-import {
-  CreateInvoiceData,
-  createInvoice,
-  getInvoiceById,
-  updateInvoice,
-  addInvoiceItem,
-  removeInvoiceItem,
-  InvoiceItem,
-} from "@/lib/api/invoice.api";
 import { getInventory, InventoryItem as InventoryItemType } from "@/lib/api/inventory.api";
+import {
+  addInvoiceItem,
+  createInvoice,
+  CreateInvoiceData,
+  getInvoiceById,
+  InvoiceItem,
+  removeInvoiceItem,
+  updateInvoice,
+} from "@/lib/api/invoice.api";
 
 // Type for new items (before they're saved to the database)
 type NewInvoiceItem = Omit<InvoiceItem, "id" | "invoiceId" | "createdAt" | "updatedAt"> & {
@@ -717,15 +717,17 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
                       )}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveInvoiceItem(index, itemId)}
-                    disabled={isSubmitting || isPaid}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={isPaid ? "Cannot remove items from paid invoices" : ""}
-                  >
-                    Remove
-                  </button>
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveInvoiceItem(index, itemId)}
+                      disabled={isSubmitting || isPaid}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={isPaid ? "Cannot remove items from paid invoices" : ""}
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               );
             })
@@ -733,85 +735,89 @@ export default function InvoiceForm({ invoiceId }: InvoiceFormProps) {
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">No items added yet</p>
           )}
 
-          {/* Add New Part */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Select Part
-            </label>
-            <select
-              value={selectedInventoryItem?.id || ""}
-              onChange={(e) => handleInventoryItemSelect(e.target.value)}
-              disabled={isLoadingInventory || !user?.currentLocationId}
-              className="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="">
-                {isLoadingInventory
-                  ? "Loading inventory..."
-                  : !user?.currentLocationId
-                  ? "No location selected"
-                  : inventoryItems.length === 0
-                  ? "No items in stock"
-                  : "Select a part"}
-              </option>
-              {inventoryItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} {item.sku && `(${item.sku})`} - ${Number(item.sellingPrice || 0).toFixed(2)} - Qty: {item.quantity}
-                </option>
-              ))}
-            </select>
-            {selectedInventoryItem && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Available: {selectedInventoryItem.quantity} | Price: ${Number(selectedInventoryItem.sellingPrice || 0).toFixed(2)}
-              </p>
-            )}
-          </div>
+          {/* Add New Part - Only show in create mode */}
+          {!isEditMode && (
+            <>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Select Part
+                </label>
+                <select
+                  value={selectedInventoryItem?.id || ""}
+                  onChange={(e) => handleInventoryItemSelect(e.target.value)}
+                  disabled={isLoadingInventory || !user?.currentLocationId}
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                >
+                  <option value="">
+                    {isLoadingInventory
+                      ? "Loading inventory..."
+                      : !user?.currentLocationId
+                      ? "No location selected"
+                      : inventoryItems.length === 0
+                      ? "No items in stock"
+                      : "Select a part"}
+                  </option>
+                  {inventoryItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} {item.sku && `(${item.sku})`} - ${Number(item.sellingPrice || 0).toFixed(2)} - Qty: {item.quantity}
+                    </option>
+                  ))}
+                </select>
+                {selectedInventoryItem && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Available: {selectedInventoryItem.quantity} | Price: ${Number(selectedInventoryItem.sellingPrice || 0).toFixed(2)}
+                  </p>
+                )}
+              </div>
 
-          {/* Part Fields */}
-          <div className="grid grid-cols-4 gap-4">
-            <input
-              type="text"
-              name="description"
-              placeholder="Description"
-              value={newItem.description}
-              onChange={handleNewItemChange}
-              readOnly
-              className="col-span-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-              disabled={!selectedInventoryItem}
-            />
-            <input
-              type="number"
-              name="quantity"
-              placeholder="Quantity"
-              min="1"
-              max={selectedInventoryItem?.quantity || 1}
-              value={newItem.quantity}
-              onChange={handleNewItemChange}
-              className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
-              disabled={!selectedInventoryItem}
-            />
-            <input
-              type="number"
-              name="unitPrice"
-              placeholder="Unit Price"
-              value={newItem.unitPrice}
-              readOnly
-              className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-              disabled={!selectedInventoryItem}
-            />
-          </div>
-          {errors.itemQuantity && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.itemQuantity}</p>
+              {/* Part Fields */}
+              <div className="grid grid-cols-4 gap-4">
+                <input
+                  type="text"
+                  name="description"
+                  placeholder="Description"
+                  value={newItem.description}
+                  onChange={handleNewItemChange}
+                  readOnly
+                  className="col-span-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                  disabled={!selectedInventoryItem}
+                />
+                <input
+                  type="number"
+                  name="quantity"
+                  placeholder="Quantity"
+                  min="1"
+                  max={selectedInventoryItem?.quantity || 1}
+                  value={newItem.quantity}
+                  onChange={handleNewItemChange}
+                  className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-500"
+                  disabled={!selectedInventoryItem}
+                />
+                <input
+                  type="number"
+                  name="unitPrice"
+                  placeholder="Unit Price"
+                  value={newItem.unitPrice}
+                  readOnly
+                  className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded p-2 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                  disabled={!selectedInventoryItem}
+                />
+              </div>
+              {errors.itemQuantity && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.itemQuantity}</p>
+              )}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={handleAddInvoiceItem}
+                  disabled={isSubmitting || !selectedInventoryItem}
+                  className="bg-blue-500 dark:bg-blue-700 text-white rounded p-2 px-4 hover:bg-blue-600 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isSubmitting ? "Adding..." : "Add Part"}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={handleAddInvoiceItem}
-              disabled={isSubmitting || !selectedInventoryItem}
-              className="bg-blue-500 dark:bg-blue-700 text-white rounded p-2 px-4 hover:bg-blue-600 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isSubmitting ? "Adding..." : "Add Part"}
-            </button>
-          </div>
           {errors.invoiceItems && (
             <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.invoiceItems}</p>
           )}
