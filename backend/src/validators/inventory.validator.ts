@@ -1,6 +1,16 @@
 import { body } from "express-validator";
 
 /**
+ * Normalize empty strings to null for optional UUID fields
+ */
+const normalizeOptionalUUID = (value: unknown): string | null => {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+  return value as string;
+};
+
+/**
  * Validation rules for creating an inventory item
  * Placeholder for future use
  */
@@ -25,14 +35,50 @@ export const createInventoryValidation = [
     .withMessage("Name is required")
     .isLength({ min: 1, max: 255 })
     .withMessage("Name must be between 1 and 255 characters"),
-  body("category")
+  body("categoryId")
     .exists()
-    .withMessage("Category is required")
-    .trim()
-    .notEmpty()
-    .withMessage("Category is required")
-    .isLength({ min: 1, max: 100 })
-    .withMessage("Category must be between 1 and 100 characters"),
+    .withMessage("Category ID is required")
+    .isUUID()
+    .withMessage("Category ID must be a valid UUID"),
+  body("subcategoryId")
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      if (value === "" || value === null || value === undefined) {
+        return true; // Allow empty/null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Subcategory ID must be a valid UUID");
+      }
+      return true;
+    }),
+  body("brandId")
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      if (value === "" || value === null || value === undefined) {
+        return true; // Allow empty/null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Brand ID must be a valid UUID");
+      }
+      return true;
+    }),
+  body("modelId")
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      if (value === "" || value === null || value === undefined) {
+        return true; // Allow empty/null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Model ID must be a valid UUID");
+      }
+      return true;
+    }),
   body("costPrice")
     .exists()
     .withMessage("Cost price is required")
@@ -77,13 +123,52 @@ export const updateInventoryValidation = [
     .withMessage("Name cannot be empty")
     .isLength({ min: 1, max: 255 })
     .withMessage("Name must be between 1 and 255 characters"),
-  body("category")
+  body("categoryId")
     .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Category cannot be empty")
-    .isLength({ min: 1, max: 100 })
-    .withMessage("Category must be between 1 and 100 characters"),
+    .isUUID()
+    .withMessage("Category ID must be a valid UUID"),
+  body("subcategoryId")
+    .optional({ nullable: true, checkFalsy: true })
+    .customSanitizer(normalizeOptionalUUID)
+    .custom((value) => {
+      if (value === null || value === undefined) {
+        return true; // Allow null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Subcategory ID must be a valid UUID");
+      }
+      return true;
+    }),
+  body("brandId")
+    .optional({ nullable: true, checkFalsy: true })
+    .customSanitizer(normalizeOptionalUUID)
+    .custom((value) => {
+      if (value === null || value === undefined) {
+        return true; // Allow null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Brand ID must be a valid UUID");
+      }
+      return true;
+    }),
+  body("modelId")
+    .optional({ nullable: true, checkFalsy: true })
+    .customSanitizer(normalizeOptionalUUID)
+    .custom((value) => {
+      if (value === null || value === undefined) {
+        return true; // Allow null values
+      }
+      // Validate UUID format if value is provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error("Model ID must be a valid UUID");
+      }
+      return true;
+    }),
   body("costPrice")
     .optional()
     .isFloat({ min: 0 })

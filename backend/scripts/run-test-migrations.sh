@@ -64,11 +64,12 @@ echo "UUID extension enabled"
 
 # List migration files
 echo "Looking for migration files..."
-ls -la "${MIGRATIONS_DIR}"/*.sql || echo "No migration files found"
+ls -la "${MIGRATIONS_DIR}"/*.sql 2>/dev/null || echo "No SQL migration files found"
+ls -la "${MIGRATIONS_DIR}"/*.js 2>/dev/null || echo "No JS migration files found"
 
-# Run all SQL migrations in order
-echo "Running migrations..."
-MIGRATION_COUNT=0
+# Run all SQL migrations in order first
+echo "Running SQL migrations..."
+SQL_MIGRATION_COUNT=0
 
 # Get all SQL migration files and sort them
 for migration in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
@@ -93,7 +94,7 @@ for migration in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
   
   if [ $EXIT_CODE -eq 0 ]; then
     echo "✓ Migration $(basename "${migration}") completed successfully"
-    MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+    SQL_MIGRATION_COUNT=$((SQL_MIGRATION_COUNT + 1))
     
     # After base schema, verify tables were created
     if [[ "${migration}" == *"base-schema"* ]]; then
@@ -120,7 +121,49 @@ for migration in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
   fi
 done
 
-echo "Successfully ran ${MIGRATION_COUNT} migrations"
+echo "Successfully ran ${SQL_MIGRATION_COUNT} SQL migrations"
+
+# Run JavaScript migrations using Sequelize CLI
+echo ""
+echo "Running JavaScript migrations..."
+JS_MIGRATION_COUNT=0
+
+# Run JavaScript migrations using Sequelize CLI
+# Always run from backend directory and use the same DB connection as SQL migrations
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${BACKEND_DIR}"
+
+# Set environment variables for Sequelize (use the same DB connection settings)
+export NODE_ENV=test
+export DB_HOST="${DB_HOST}"
+export DB_PORT="${DB_PORT}"  # Use the same port (5433 for test DB)
+export DB_USER="${DB_USER}"
+export DB_PASSWORD="${DB_PASSWORD}"
+export DB_NAME="${DB_NAME}"
+
+# Run Sequelize migrations
+echo "Running Sequelize migrations..."
+MIGRATION_OUTPUT=$(npx sequelize-cli db:migrate 2>&1)
+MIGRATION_EXIT_CODE=$?
+
+echo "${MIGRATION_OUTPUT}"
+
+if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
+  echo "✓ JavaScript migrations completed successfully"
+  JS_MIGRATION_COUNT=1  # Sequelize CLI handles all JS migrations at once
+else
+  # Check if the error is just "already applied" which is fine
+  if echo "${MIGRATION_OUTPUT}" | grep -q "already applied\|No migrations were executed"; then
+    echo "✓ JavaScript migrations already applied (skipped)"
+    JS_MIGRATION_COUNT=1
+  else
+    echo "✗ JavaScript migrations failed with exit code ${MIGRATION_EXIT_CODE}"
+    exit 1
+  fi
+fi
+
+TOTAL_MIGRATION_COUNT=$((SQL_MIGRATION_COUNT + JS_MIGRATION_COUNT))
+echo "Successfully ran ${TOTAL_MIGRATION_COUNT} migrations (${SQL_MIGRATION_COUNT} SQL, ${JS_MIGRATION_COUNT} JS)"
 echo "All migrations completed successfully"
 
 # Verify database schema
@@ -129,25 +172,25 @@ if [ "${USE_DOCKER_PSQL}" = "true" ]; then
   docker exec -e PGPASSWORD="${DB_PASSWORD}" "${CONTAINER_NAME}" \
     psql -U "${PSQL_USER}" -d "${PSQL_DB}" -c "\dt" || exit 1
   
-  # Verify key tables exist
+  # Verify key tables exist (including new inventory reference tables)
   echo "Checking for required tables..."
   TABLE_COUNT=$(docker exec -e PGPASSWORD="${DB_PASSWORD}" "${CONTAINER_NAME}" \
     psql -U "${PSQL_USER}" -d "${PSQL_DB}" \
-    -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions');")
+    -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions', 'inventory_categories', 'inventory_subcategories', 'inventory_brands', 'inventory_models');")
 else
   psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" -c "\dt" || exit 1
   
-  # Verify key tables exist
+  # Verify key tables exist (including new inventory reference tables)
   echo "Checking for required tables..."
   TABLE_COUNT=$(psql "postgresql://${PSQL_USER}:${DB_PASSWORD}@${PSQL_HOST}:${PSQL_PORT}/${PSQL_DB}" \
-    -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions');")
+    -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('companies', 'users', 'customers', 'tickets', 'invoices', 'role_permissions', 'inventory_categories', 'inventory_subcategories', 'inventory_brands', 'inventory_models');")
 fi
 
 # Trim whitespace from TABLE_COUNT
 TABLE_COUNT=$(echo "${TABLE_COUNT}" | tr -d '[:space:]')
 echo "Found ${TABLE_COUNT} required tables"
-if [ "${TABLE_COUNT}" -lt 6 ]; then
-  echo "ERROR: Not all required tables exist!"
+if [ "${TABLE_COUNT}" -lt 10 ]; then
+  echo "ERROR: Not all required tables exist! Expected at least 10 tables (6 base + 4 inventory reference tables)"
   exit 1
 fi
 echo "✓ All required tables exist"

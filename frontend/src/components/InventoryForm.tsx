@@ -11,6 +11,10 @@ import {
   LocationQuantity,
 } from "@/lib/api/inventory.api";
 import { getLocations, Location } from "@/lib/api/location.api";
+import { getInventoryCategories, InventoryCategory } from "@/lib/api/inventory-category.api";
+import { getInventorySubcategories, InventorySubcategory } from "@/lib/api/inventory-subcategory.api";
+import { getInventoryBrands, InventoryBrand } from "@/lib/api/inventory-brand.api";
+import { getInventoryModels, InventoryModel } from "@/lib/api/inventory-model.api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -27,15 +31,20 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationQuantities, setLocationQuantities] = useState<LocationQuantity[]>([]);
   const [editingQuantities, setEditingQuantities] = useState<Record<string, number>>({});
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<InventorySubcategory[]>([]);
+  const [brands, setBrands] = useState<InventoryBrand[]>([]);
+  const [models, setModels] = useState<InventoryModel[]>([]);
+  const [filteredModels, setFilteredModels] = useState<InventoryModel[]>([]);
 
   const [formData, setFormData] = useState({
     sku: "",
     name: "",
     description: "",
-    category: "",
-    subcategory: "",
-    brand: "",
-    model: "",
+    categoryId: "",
+    subcategoryId: "",
+    brandId: "",
+    modelId: "",
     compatibleWith: [] as string[],
     costPrice: 0,
     sellingPrice: 0,
@@ -48,18 +57,43 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
   });
 
   useEffect(() => {
-    const fetchLocations = async () => {
+    const fetchData = async () => {
       try {
-        const response = await getLocations();
-        if (response.data) {
-          setLocations(response.data);
-        }
+        const [locationsRes, categoriesRes, subcategoriesRes, brandsRes, modelsRes] = await Promise.all([
+          getLocations(),
+          getInventoryCategories(),
+          getInventorySubcategories(),
+          getInventoryBrands(),
+          getInventoryModels(),
+        ]);
+        if (locationsRes.data) setLocations(locationsRes.data);
+        if (categoriesRes.data) setCategories(categoriesRes.data);
+        if (subcategoriesRes.data) setSubcategories(subcategoriesRes.data);
+        if (brandsRes.data) setBrands(brandsRes.data);
+        if (modelsRes.data) setModels(modelsRes.data);
       } catch (err) {
-        console.error("Error fetching locations:", err);
+        console.error("Error fetching data:", err);
       }
     };
-    fetchLocations();
+    fetchData();
   }, []);
+
+  // Filter models when brand changes
+  useEffect(() => {
+    if (formData.brandId) {
+      setFilteredModels(models.filter((m) => m.brandId === formData.brandId));
+      // Reset model if current model doesn't belong to selected brand
+      if (formData.modelId) {
+        const currentModel = models.find((m) => m.id === formData.modelId);
+        if (!currentModel || currentModel.brandId !== formData.brandId) {
+          setFormData((prev) => ({ ...prev, modelId: "" }));
+        }
+      }
+    } else {
+      setFilteredModels([]);
+      setFormData((prev) => ({ ...prev, modelId: "" }));
+    }
+  }, [formData.brandId, models]);
 
   useEffect(() => {
     if (isEditMode && itemId) {
@@ -73,10 +107,10 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
               sku: item.sku,
               name: item.name,
               description: item.description || "",
-              category: item.category,
-              subcategory: item.subcategory || "",
-              brand: item.brand || "",
-              model: item.model || "",
+              categoryId: item.categoryId || item.category?.id || "",
+              subcategoryId: item.subcategoryId || item.subcategory?.id || "",
+              brandId: item.brandId || item.brand?.id || "",
+              modelId: item.modelId || item.model?.id || "",
               compatibleWith: item.compatibleWith || [],
               costPrice: item.costPrice,
               sellingPrice: item.sellingPrice,
@@ -119,10 +153,10 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
           sku: formData.sku,
           name: formData.name,
           description: formData.description || null,
-          category: formData.category,
-          subcategory: formData.subcategory || null,
-          brand: formData.brand || null,
-          model: formData.model || null,
+          categoryId: formData.categoryId,
+          subcategoryId: formData.subcategoryId || null,
+          brandId: formData.brandId || null,
+          modelId: formData.modelId || null,
           compatibleWith: formData.compatibleWith.length > 0 ? formData.compatibleWith : null,
           costPrice: formData.costPrice,
           sellingPrice: formData.sellingPrice,
@@ -143,10 +177,10 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
           sku: formData.sku.trim() || undefined,
           name: formData.name,
           description: formData.description || null,
-          category: formData.category,
-          subcategory: formData.subcategory || null,
-          brand: formData.brand || null,
-          model: formData.model || null,
+          categoryId: formData.categoryId,
+          subcategoryId: formData.subcategoryId || null,
+          brandId: formData.brandId || null,
+          modelId: formData.modelId || null,
           compatibleWith: formData.compatibleWith.length > 0 ? formData.compatibleWith : null,
           costPrice: formData.costPrice,
           sellingPrice: formData.sellingPrice,
@@ -246,46 +280,71 @@ export default function InventoryForm({ itemId }: InventoryFormProps) {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Category *
               </label>
-              <input
-                type="text"
+              <select
                 required
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
+              >
+                <option value="">Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Subcategory
               </label>
-              <input
-                type="text"
-                value={formData.subcategory}
-                onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+              <select
+                value={formData.subcategoryId}
+                onChange={(e) => setFormData({ ...formData, subcategoryId: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
+              >
+                <option value="">None</option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory.id} value={subcategory.id}>
+                    {subcategory.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Brand
               </label>
-              <input
-                type="text"
-                value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              <select
+                value={formData.brandId}
+                onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
+              >
+                <option value="">None</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Model
               </label>
-              <input
-                type="text"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              />
+              <select
+                value={formData.modelId}
+                onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
+                disabled={!formData.brandId}
+                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{formData.brandId ? "None" : "Select a brand first"}</option>
+                {filteredModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

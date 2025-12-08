@@ -22,6 +22,10 @@ export interface Database {
   diagnostic_checklist_responses: DiagnosticChecklistResponseTable;
   inventory_items: InventoryItemTable;
   inventory_location_quantities: InventoryLocationQuantityTable;
+  inventory_categories: InventoryCategoryTable;
+  inventory_subcategories: InventorySubcategoryTable;
+  inventory_brands: InventoryBrandTable;
+  inventory_models: InventoryModelTable;
   invoices: InvoiceTable;
   invoice_items: InvoiceItemTable;
   invitations: InvitationTable;
@@ -85,13 +89,55 @@ export interface CustomerTable {
   deleted_at: SoftDelete;
 }
 
+export interface InventoryCategoryTable {
+  id: UUID;
+  company_id: UUID;
+  name: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
+export interface InventorySubcategoryTable {
+  id: UUID;
+  company_id: UUID;
+  name: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
+export interface InventoryBrandTable {
+  id: UUID;
+  company_id: UUID;
+  name: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
+export interface InventoryModelTable {
+  id: UUID;
+  company_id: UUID;
+  brand_id: UUID;
+  name: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  deleted_at: SoftDelete;
+}
+
 export interface InventoryItemTable {
   id: UUID;
   company_id: UUID;
   sku: string;
   name: string;
   description: string | null;
-  category: string;
+  category_id: UUID | null;
+  subcategory_id: UUID | null;
+  brand_id: UUID | null;
+  model_id: UUID | null;
+  // Legacy columns kept for backward compatibility during migration
+  category: string | null;
   subcategory: string | null;
   brand: string | null;
   model: string | null;

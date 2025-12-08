@@ -11,6 +11,10 @@ import {
   ShieldCheckIcon,
   UserCircleIcon,
   UsersIcon,
+  TagIcon,
+  Squares2X2Icon,
+  BuildingStorefrontIcon,
+  CpuChipIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -102,6 +106,38 @@ export default function SettingsPage() {
       icon: UserCircleIcon,
       permission: "settings.access",
       superuserOnly: true,
+    },
+    {
+      name: "Inventory Categories",
+      description: "Manage inventory categories",
+      href: "/settings/inventory-categories",
+      icon: TagIcon,
+      permission: "inventory.categories.read",
+      adminOnly: true,
+    },
+    {
+      name: "Inventory Subcategories",
+      description: "Manage inventory subcategories",
+      href: "/settings/inventory-subcategories",
+      icon: Squares2X2Icon,
+      permission: "inventory.subcategories.read",
+      adminOnly: true,
+    },
+    {
+      name: "Inventory Brands",
+      description: "Manage inventory brands",
+      href: "/settings/inventory-brands",
+      icon: BuildingStorefrontIcon,
+      permission: "inventory.brands.read",
+      adminOnly: true,
+    },
+    {
+      name: "Inventory Models",
+      description: "Manage inventory models",
+      href: "/settings/inventory-models",
+      icon: CpuChipIcon,
+      permission: "inventory.models.read",
+      adminOnly: true,
     },
   ];
 

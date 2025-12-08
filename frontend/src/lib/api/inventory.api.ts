@@ -6,15 +6,40 @@ export interface LocationQuantity {
   quantity: number;
 }
 
+export interface InventoryCategoryRef {
+  id: string;
+  name: string;
+}
+
+export interface InventorySubcategoryRef {
+  id: string;
+  name: string;
+}
+
+export interface InventoryBrandRef {
+  id: string;
+  name: string;
+}
+
+export interface InventoryModelRef {
+  id: string;
+  brandId: string;
+  name: string;
+}
+
 export interface InventoryItem {
   id: string;
   sku: string;
   name: string;
   description: string | null;
-  category: string;
-  subcategory: string | null;
-  brand: string | null;
-  model: string | null;
+  categoryId: string;
+  category: InventoryCategoryRef;
+  subcategoryId: string | null;
+  subcategory: InventorySubcategoryRef | null;
+  brandId: string | null;
+  brand: InventoryBrandRef | null;
+  modelId: string | null;
+  model: InventoryModelRef | null;
   compatibleWith: string[] | null;
   costPrice: number;
   sellingPrice: number;
@@ -77,10 +102,10 @@ export interface CreateInventoryItemData {
   sku?: string;
   name: string;
   description?: string | null;
-  category: string;
-  subcategory?: string | null;
-  brand?: string | null;
-  model?: string | null;
+  categoryId: string;
+  subcategoryId?: string | null;
+  brandId?: string | null;
+  modelId?: string | null;
   compatibleWith?: string[] | null;
   costPrice: number;
   sellingPrice: number;
@@ -97,10 +122,10 @@ export interface UpdateInventoryItemData {
   sku?: string;
   name?: string;
   description?: string | null;
-  category?: string;
-  subcategory?: string | null;
-  brand?: string | null;
-  model?: string | null;
+  categoryId?: string;
+  subcategoryId?: string | null;
+  brandId?: string | null;
+  modelId?: string | null;
   compatibleWith?: string[] | null;
   costPrice?: number;
   sellingPrice?: number;

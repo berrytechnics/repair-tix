@@ -1,0 +1,29 @@
+{
+  "development": {
+    "username": "repair_admin",
+    "password": "repair_password",
+    "database": "repair_business",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres",
+    "logging": false
+  },
+  "test": {
+    "username": "test_user",
+    "password": "test_password",
+    "database": "test_db",
+    "host": "localhost",
+    "port": 5433,
+    "dialect": "postgres",
+    "logging": false
+  },
+  "production": {
+    "username": "",
+    "password": "",
+    "database": "",
+    "host": "",
+    "port": 5432,
+    "dialect": "postgres",
+    "logging": false
+  }
+}

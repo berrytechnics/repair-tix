@@ -71,6 +71,30 @@ export const PERMISSIONS = {
 
   // Company settings permissions
   COMPANY_SETTINGS_MANAGE: "company_settings.manage",
+
+  // Inventory category permissions
+  INVENTORY_CATEGORIES_READ: "inventory.categories.read",
+  INVENTORY_CATEGORIES_CREATE: "inventory.categories.create",
+  INVENTORY_CATEGORIES_UPDATE: "inventory.categories.update",
+  INVENTORY_CATEGORIES_DELETE: "inventory.categories.delete",
+
+  // Inventory subcategory permissions
+  INVENTORY_SUBCATEGORIES_READ: "inventory.subcategories.read",
+  INVENTORY_SUBCATEGORIES_CREATE: "inventory.subcategories.create",
+  INVENTORY_SUBCATEGORIES_UPDATE: "inventory.subcategories.update",
+  INVENTORY_SUBCATEGORIES_DELETE: "inventory.subcategories.delete",
+
+  // Inventory brand permissions
+  INVENTORY_BRANDS_READ: "inventory.brands.read",
+  INVENTORY_BRANDS_CREATE: "inventory.brands.create",
+  INVENTORY_BRANDS_UPDATE: "inventory.brands.update",
+  INVENTORY_BRANDS_DELETE: "inventory.brands.delete",
+
+  // Inventory model permissions
+  INVENTORY_MODELS_READ: "inventory.models.read",
+  INVENTORY_MODELS_CREATE: "inventory.models.create",
+  INVENTORY_MODELS_UPDATE: "inventory.models.update",
+  INVENTORY_MODELS_DELETE: "inventory.models.delete",
 } as const;
 
 // Type for permission strings
@@ -115,6 +139,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.INVENTORY_UPDATE,
     PERMISSIONS.INVENTORY_DELETE,
 
+    // Inventory reference tables - read only
+    PERMISSIONS.INVENTORY_CATEGORIES_READ,
+    PERMISSIONS.INVENTORY_SUBCATEGORIES_READ,
+    PERMISSIONS.INVENTORY_BRANDS_READ,
+    PERMISSIONS.INVENTORY_MODELS_READ,
+
     // Purchase Orders - read, create, update, receive, cancel (no delete)
     PERMISSIONS.PURCHASE_ORDERS_READ,
     PERMISSIONS.PURCHASE_ORDERS_CREATE,
@@ -149,6 +179,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Inventory - read only
     PERMISSIONS.INVENTORY_READ,
 
+    // Inventory reference tables - read only
+    PERMISSIONS.INVENTORY_CATEGORIES_READ,
+    PERMISSIONS.INVENTORY_SUBCATEGORIES_READ,
+    PERMISSIONS.INVENTORY_BRANDS_READ,
+    PERMISSIONS.INVENTORY_MODELS_READ,
+
     // Purchase Orders - read only
     PERMISSIONS.PURCHASE_ORDERS_READ,
 
@@ -175,6 +211,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Invoices - no access
     // Inventory - read only
     PERMISSIONS.INVENTORY_READ,
+
+    // Inventory reference tables - read only
+    PERMISSIONS.INVENTORY_CATEGORIES_READ,
+    PERMISSIONS.INVENTORY_SUBCATEGORIES_READ,
+    PERMISSIONS.INVENTORY_BRANDS_READ,
+    PERMISSIONS.INVENTORY_MODELS_READ,
 
     // Purchase Orders - read only
     PERMISSIONS.PURCHASE_ORDERS_READ,

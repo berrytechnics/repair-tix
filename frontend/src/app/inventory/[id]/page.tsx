@@ -207,15 +207,15 @@ export default function InventoryDetailPage({
               <div>
                 <dt className="text-sm text-gray-500 dark:text-gray-400">Category</dt>
                 <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {item.category}
-                  {item.subcategory && ` / ${item.subcategory}`}
+                  {item.category?.name || item.categoryId || "Unknown"}
+                  {item.subcategory && ` / ${item.subcategory.name}`}
                 </dd>
               </div>
               {item.brand && (
                 <div>
                   <dt className="text-sm text-gray-500 dark:text-gray-400">Brand</dt>
                   <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {item.brand}
+                    {item.brand.name}
                   </dd>
                 </div>
               )}
@@ -223,7 +223,7 @@ export default function InventoryDetailPage({
                 <div>
                   <dt className="text-sm text-gray-500 dark:text-gray-400">Model</dt>
                   <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {item.model}
+                    {item.model.name}
                   </dd>
                 </div>
               )}

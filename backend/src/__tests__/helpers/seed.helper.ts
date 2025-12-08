@@ -517,10 +517,10 @@ export async function createTestInventoryItem(
     sku?: string;
     name?: string;
     description?: string | null;
-    category?: string;
-    subcategory?: string | null;
-    brand?: string | null;
-    model?: string | null;
+    categoryId?: string;
+    subcategoryId?: string | null;
+    brandId?: string | null;
+    modelId?: string | null;
     compatibleWith?: string[] | null;
     costPrice?: number;
     sellingPrice?: number;
@@ -535,6 +535,37 @@ export async function createTestInventoryItem(
   const itemId = uuidv4();
   const sku = overrides?.sku || `TEST-SKU-${itemId.slice(0, 8)}`;
 
+  // Create or get category
+  let categoryId = overrides?.categoryId;
+  if (!categoryId) {
+    const categoryName = "Parts";
+    const existingCategory = await db
+      .selectFrom("inventory_categories")
+      .select("id")
+      .where("company_id", "=", companyId)
+      .where("name", "=", categoryName)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+    
+    if (existingCategory) {
+      categoryId = existingCategory.id as string;
+    } else {
+      const newCategoryId = uuidv4();
+      await db
+        .insertInto("inventory_categories")
+        .values({
+          id: newCategoryId,
+          company_id: companyId,
+          name: categoryName,
+          created_at: sql`now()`,
+          updated_at: sql`now()`,
+          deleted_at: null,
+        })
+        .execute();
+      categoryId = newCategoryId;
+    }
+  }
+
   // Create the product (company-wide)
   await db
     .insertInto("inventory_items")
@@ -544,10 +575,10 @@ export async function createTestInventoryItem(
       sku: sku,
       name: overrides?.name || "Test Inventory Item",
       description: overrides?.description || null,
-      category: overrides?.category || "Parts",
-      subcategory: overrides?.subcategory || null,
-      brand: overrides?.brand || null,
-      model: overrides?.model || null,
+      category_id: categoryId,
+      subcategory_id: overrides?.subcategoryId || null,
+      brand_id: overrides?.brandId || null,
+      model_id: overrides?.modelId || null,
       compatible_with: overrides?.compatibleWith || null,
       cost_price: overrides?.costPrice ?? 10.0,
       selling_price: overrides?.sellingPrice ?? 20.0,

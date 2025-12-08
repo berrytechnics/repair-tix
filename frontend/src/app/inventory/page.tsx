@@ -284,23 +284,23 @@ export default function InventoryPage() {
                           {item.name}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
-                          <span>{item.category}</span>
+                          <span>{item.category?.name || item.categoryId || "Unknown"}</span>
                           {item.subcategory && (
                             <>
                               <span>/</span>
-                              <span>{item.subcategory}</span>
+                              <span>{item.subcategory.name}</span>
                             </>
                           )}
                           {item.brand && (
                             <>
                               <span>•</span>
-                              <span>{item.brand}</span>
+                              <span>{item.brand.name}</span>
                             </>
                           )}
                           {item.model && (
                             <>
                               <span>•</span>
-                              <span>{item.model}</span>
+                              <span>{item.model.name}</span>
                             </>
                           )}
                         </div>

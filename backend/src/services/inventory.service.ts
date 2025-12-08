@@ -10,10 +10,10 @@ export interface CreateInventoryItemDto {
   sku?: string;
   name: string;
   description?: string | null;
-  category: string;
-  subcategory?: string | null;
-  brand?: string | null;
-  model?: string | null;
+  categoryId: string;
+  subcategoryId?: string | null;
+  brandId?: string | null;
+  modelId?: string | null;
   compatibleWith?: string[] | null;
   costPrice: number;
   sellingPrice: number;
@@ -30,10 +30,10 @@ export interface UpdateInventoryItemDto {
   sku?: string;
   name?: string;
   description?: string | null;
-  category?: string;
-  subcategory?: string | null;
-  brand?: string | null;
-  model?: string | null;
+  categoryId?: string;
+  subcategoryId?: string | null;
+  brandId?: string | null;
+  modelId?: string | null;
   compatibleWith?: string[] | null;
   costPrice?: number;
   sellingPrice?: number;
@@ -51,6 +51,28 @@ export interface LocationQuantity {
   quantity: number;
 }
 
+// Reference object types
+export interface InventoryCategoryRef {
+  id: string;
+  name: string;
+}
+
+export interface InventorySubcategoryRef {
+  id: string;
+  name: string;
+}
+
+export interface InventoryBrandRef {
+  id: string;
+  name: string;
+}
+
+export interface InventoryModelRef {
+  id: string;
+  brandId: string;
+  name: string;
+}
+
 // Output type - converts snake_case to camelCase
 export type InventoryItem = Omit<
   InventoryItemTable,
@@ -59,6 +81,10 @@ export type InventoryItem = Omit<
   | "sku"
   | "name"
   | "description"
+  | "category_id"
+  | "subcategory_id"
+  | "brand_id"
+  | "model_id"
   | "category"
   | "subcategory"
   | "brand"
@@ -81,10 +107,14 @@ export type InventoryItem = Omit<
   sku: string;
   name: string;
   description: string | null;
-  category: string;
-  subcategory: string | null;
-  brand: string | null;
-  model: string | null;
+  categoryId: string | null;
+  category: InventoryCategoryRef | null;
+  subcategoryId: string | null;
+  subcategory: InventorySubcategoryRef | null;
+  brandId: string | null;
+  brand: InventoryBrandRef | null;
+  modelId: string | null;
+  model: InventoryModelRef | null;
   compatibleWith: string[] | null;
   costPrice: number;
   sellingPrice: number;
@@ -109,10 +139,15 @@ function toInventoryItem(
     sku: string;
     name: string;
     description: string | null;
-    category: string;
-    subcategory: string | null;
-    brand: string | null;
-    model: string | null;
+    category_id: string | null;
+    subcategory_id: string | null;
+    brand_id: string | null;
+    model_id: string | null;
+    category_name: string | null;
+    subcategory_name: string | null;
+    brand_name: string | null;
+    model_name: string | null;
+    model_brand_id: string | null;
     compatible_with: string[] | null;
     cost_price: number;
     selling_price: number;
@@ -135,10 +170,35 @@ function toInventoryItem(
     sku: item.sku,
     name: item.name,
     description: item.description,
-    category: item.category,
-    subcategory: item.subcategory,
-    brand: item.brand,
-    model: item.model,
+    categoryId: item.category_id as string | null,
+    category: item.category_id && item.category_name
+      ? {
+          id: item.category_id as string,
+          name: item.category_name,
+        }
+      : null,
+    subcategoryId: item.subcategory_id as string | null,
+    subcategory: item.subcategory_id && item.subcategory_name
+      ? {
+          id: item.subcategory_id as string,
+          name: item.subcategory_name,
+        }
+      : null,
+    brandId: item.brand_id as string | null,
+    brand: item.brand_id && item.brand_name
+      ? {
+          id: item.brand_id as string,
+          name: item.brand_name,
+        }
+      : null,
+    modelId: item.model_id as string | null,
+    model: item.model_id && item.model_name
+      ? {
+          id: item.model_id as string,
+          brandId: item.model_brand_id as string,
+          name: item.model_name,
+        }
+      : null,
     compatibleWith: item.compatible_with,
     costPrice: item.cost_price,
     sellingPrice: item.selling_price,
@@ -164,19 +224,71 @@ export class InventoryService {
   ): Promise<InventoryItem[]> {
     let query = db
       .selectFrom("inventory_items")
-      .selectAll()
-      .where("company_id", "=", companyId)
-      .where("deleted_at", "is", null);
+      .leftJoin("inventory_categories", (join) =>
+        join
+          .onRef("inventory_categories.id", "=", "inventory_items.category_id")
+          .on("inventory_categories.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_subcategories", (join) =>
+        join
+          .onRef(
+            "inventory_subcategories.id",
+            "=",
+            "inventory_items.subcategory_id"
+          )
+          .on("inventory_subcategories.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_brands", (join) =>
+        join
+          .onRef("inventory_brands.id", "=", "inventory_items.brand_id")
+          .on("inventory_brands.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_models", (join) =>
+        join
+          .onRef("inventory_models.id", "=", "inventory_items.model_id")
+          .on("inventory_models.deleted_at", "is", null)
+      )
+      .select([
+        "inventory_items.id",
+        "inventory_items.company_id",
+        "inventory_items.sku",
+        "inventory_items.name",
+        "inventory_items.description",
+        "inventory_items.category_id",
+        "inventory_items.subcategory_id",
+        "inventory_items.brand_id",
+        "inventory_items.model_id",
+        "inventory_categories.name as category_name",
+        "inventory_subcategories.name as subcategory_name",
+        "inventory_brands.name as brand_name",
+        "inventory_models.name as model_name",
+        "inventory_models.brand_id as model_brand_id",
+        "inventory_items.compatible_with",
+        "inventory_items.cost_price",
+        "inventory_items.selling_price",
+        "inventory_items.reorder_level",
+        "inventory_items.location",
+        "inventory_items.supplier",
+        "inventory_items.supplier_part_number",
+        "inventory_items.is_active",
+        "inventory_items.is_taxable",
+        "inventory_items.track_quantity",
+        "inventory_items.created_at",
+        "inventory_items.updated_at",
+        "inventory_items.deleted_at",
+      ])
+      .where("inventory_items.company_id", "=", companyId)
+      .where("inventory_items.deleted_at", "is", null);
 
     if (searchQuery) {
       const search = `%${searchQuery.toLowerCase()}%`;
       query = query.where((eb) =>
         eb.or([
-          eb("sku", "ilike", search),
-          eb("name", "ilike", search),
-          eb("category", "ilike", search),
-          eb("brand", "ilike", search),
-          eb("model", "ilike", search),
+          eb("inventory_items.sku", "ilike", search),
+          eb("inventory_items.name", "ilike", search),
+          eb("inventory_categories.name", "ilike", search),
+          eb("inventory_brands.name", "ilike", search),
+          eb("inventory_models.name", "ilike", search),
         ])
       );
     }
@@ -244,10 +356,62 @@ export class InventoryService {
   async findById(id: string, companyId: string): Promise<InventoryItem | null> {
     const item = await db
       .selectFrom("inventory_items")
-      .selectAll()
-      .where("id", "=", id)
-      .where("company_id", "=", companyId)
-      .where("deleted_at", "is", null)
+      .leftJoin("inventory_categories", (join) =>
+        join
+          .onRef("inventory_categories.id", "=", "inventory_items.category_id")
+          .on("inventory_categories.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_subcategories", (join) =>
+        join
+          .onRef(
+            "inventory_subcategories.id",
+            "=",
+            "inventory_items.subcategory_id"
+          )
+          .on("inventory_subcategories.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_brands", (join) =>
+        join
+          .onRef("inventory_brands.id", "=", "inventory_items.brand_id")
+          .on("inventory_brands.deleted_at", "is", null)
+      )
+      .leftJoin("inventory_models", (join) =>
+        join
+          .onRef("inventory_models.id", "=", "inventory_items.model_id")
+          .on("inventory_models.deleted_at", "is", null)
+      )
+      .select([
+        "inventory_items.id",
+        "inventory_items.company_id",
+        "inventory_items.sku",
+        "inventory_items.name",
+        "inventory_items.description",
+        "inventory_items.category_id",
+        "inventory_items.subcategory_id",
+        "inventory_items.brand_id",
+        "inventory_items.model_id",
+        "inventory_categories.name as category_name",
+        "inventory_subcategories.name as subcategory_name",
+        "inventory_brands.name as brand_name",
+        "inventory_models.name as model_name",
+        "inventory_models.brand_id as model_brand_id",
+        "inventory_items.compatible_with",
+        "inventory_items.cost_price",
+        "inventory_items.selling_price",
+        "inventory_items.reorder_level",
+        "inventory_items.location",
+        "inventory_items.supplier",
+        "inventory_items.supplier_part_number",
+        "inventory_items.is_active",
+        "inventory_items.is_taxable",
+        "inventory_items.track_quantity",
+        "inventory_items.created_at",
+        "inventory_items.updated_at",
+        "inventory_items.deleted_at",
+      ])
+      .where("inventory_items.id", "=", id)
+      .where("inventory_items.company_id", "=", companyId)
+      .where("inventory_items.deleted_at", "is", null)
       .executeTakeFirst();
 
     if (!item) {
@@ -334,6 +498,64 @@ export class InventoryService {
       throw new BadRequestError(`SKU ${sku} already exists in this company`);
     }
 
+    // Verify category exists and belongs to company
+    const category = await db
+      .selectFrom("inventory_categories")
+      .select("id")
+      .where("id", "=", data.categoryId)
+      .where("company_id", "=", companyId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (!category) {
+      throw new BadRequestError("Category not found or does not belong to company");
+    }
+
+    // Verify subcategory if provided
+    if (data.subcategoryId) {
+      const subcategory = await db
+        .selectFrom("inventory_subcategories")
+        .select("id")
+        .where("id", "=", data.subcategoryId)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (!subcategory) {
+        throw new BadRequestError("Subcategory not found or does not belong to company");
+      }
+    }
+
+    // Verify brand if provided
+    if (data.brandId) {
+      const brand = await db
+        .selectFrom("inventory_brands")
+        .select("id")
+        .where("id", "=", data.brandId)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (!brand) {
+        throw new BadRequestError("Brand not found or does not belong to company");
+      }
+    }
+
+    // Verify model if provided
+    if (data.modelId) {
+      const model = await db
+        .selectFrom("inventory_models")
+        .select("id")
+        .where("id", "=", data.modelId)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (!model) {
+        throw new BadRequestError("Model not found or does not belong to company");
+      }
+    }
+
     // Create the product (single row per SKU)
     const item = await db
       .insertInto("inventory_items")
@@ -343,10 +565,10 @@ export class InventoryService {
         sku: sku,
         name: data.name,
         description: data.description || null,
-        category: data.category,
-        subcategory: data.subcategory || null,
-        brand: data.brand || null,
-        model: data.model || null,
+        category_id: data.categoryId,
+        subcategory_id: data.subcategoryId || null,
+        brand_id: data.brandId || null,
+        model_id: data.modelId || null,
         compatible_with: data.compatibleWith || null,
         cost_price: data.costPrice,
         selling_price: data.sellingPrice,
@@ -390,13 +612,8 @@ export class InventoryService {
         .execute();
     }
 
-    // Get all location quantities for return (all 0)
-    const locationQuantities: LocationQuantity[] = allLocations.map((loc) => ({
-      locationId: loc.id as string,
-      quantity: 0,
-    }));
-
-    return toInventoryItem(item, locationQuantities);
+    // Fetch the item with joins to get reference data
+    return this.findById(item.id, companyId) as Promise<InventoryItem>;
   }
 
   async update(
@@ -451,17 +668,71 @@ export class InventoryService {
     if (data.description !== undefined) {
       updateQuery = updateQuery.set({ description: data.description || null });
     }
-    if (data.category !== undefined) {
-      updateQuery = updateQuery.set({ category: data.category });
+    if (data.categoryId !== undefined) {
+      // Verify category exists and belongs to company
+      const category = await db
+        .selectFrom("inventory_categories")
+        .select("id")
+        .where("id", "=", data.categoryId)
+        .where("company_id", "=", companyId)
+        .where("deleted_at", "is", null)
+        .executeTakeFirst();
+
+      if (!category) {
+        throw new BadRequestError("Category not found or does not belong to company");
+      }
+      updateQuery = updateQuery.set({ category_id: data.categoryId });
     }
-    if (data.subcategory !== undefined) {
-      updateQuery = updateQuery.set({ subcategory: data.subcategory || null });
+    if (data.subcategoryId !== undefined) {
+      if (data.subcategoryId) {
+        // Verify subcategory exists and belongs to company
+        const subcategory = await db
+          .selectFrom("inventory_subcategories")
+          .select("id")
+          .where("id", "=", data.subcategoryId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!subcategory) {
+          throw new BadRequestError("Subcategory not found or does not belong to company");
+        }
+      }
+      updateQuery = updateQuery.set({ subcategory_id: data.subcategoryId || null });
     }
-    if (data.brand !== undefined) {
-      updateQuery = updateQuery.set({ brand: data.brand || null });
+    if (data.brandId !== undefined) {
+      if (data.brandId) {
+        // Verify brand exists and belongs to company
+        const brand = await db
+          .selectFrom("inventory_brands")
+          .select("id")
+          .where("id", "=", data.brandId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!brand) {
+          throw new BadRequestError("Brand not found or does not belong to company");
+        }
+      }
+      updateQuery = updateQuery.set({ brand_id: data.brandId || null });
     }
-    if (data.model !== undefined) {
-      updateQuery = updateQuery.set({ model: data.model || null });
+    if (data.modelId !== undefined) {
+      if (data.modelId) {
+        // Verify model exists and belongs to company
+        const model = await db
+          .selectFrom("inventory_models")
+          .select("id")
+          .where("id", "=", data.modelId)
+          .where("company_id", "=", companyId)
+          .where("deleted_at", "is", null)
+          .executeTakeFirst();
+
+        if (!model) {
+          throw new BadRequestError("Model not found or does not belong to company");
+        }
+      }
+      updateQuery = updateQuery.set({ model_id: data.modelId || null });
     }
     if (data.compatibleWith !== undefined) {
       updateQuery = updateQuery.set({ compatible_with: data.compatibleWith || null });
@@ -500,19 +771,8 @@ export class InventoryService {
       return null;
     }
 
-    // Get all location quantities for return
-    const locationQuantities = await db
-      .selectFrom("inventory_location_quantities")
-      .select(["location_id", "quantity"])
-      .where("inventory_item_id", "=", id)
-      .execute();
-
-    const quantities: LocationQuantity[] = locationQuantities.map((qty) => ({
-      locationId: qty.location_id as string,
-      quantity: qty.quantity,
-    }));
-
-    return toInventoryItem(updated, quantities);
+    // Fetch the updated item with joins to get reference data
+    return this.findById(id, companyId);
   }
 
   async delete(id: string, companyId: string): Promise<boolean> {
@@ -677,18 +937,8 @@ export class InventoryService {
 
     // If track_quantity is false, don't adjust
     if (!item.track_quantity) {
-      const locationQuantities = await db
-        .selectFrom("inventory_location_quantities")
-        .select(["location_id", "quantity"])
-        .where("inventory_item_id", "=", inventoryItemId)
-        .execute();
-
-      const quantities: LocationQuantity[] = locationQuantities.map((qty) => ({
-        locationId: qty.location_id as string,
-        quantity: qty.quantity,
-      }));
-
-      return toInventoryItem(item, quantities);
+      // Fetch with joins to get reference data
+      return this.findById(inventoryItemId, companyId) as Promise<InventoryItem>;
     }
 
     // Verify location belongs to company
@@ -775,18 +1025,8 @@ export class InventoryService {
 
     // Only update cost if track_quantity is true
     if (!item.track_quantity) {
-      const locationQuantities = await db
-        .selectFrom("inventory_location_quantities")
-        .select(["location_id", "quantity"])
-        .where("inventory_item_id", "=", inventoryItemId)
-        .execute();
-
-      const quantities: LocationQuantity[] = locationQuantities.map((qty) => ({
-        locationId: qty.location_id as string,
-        quantity: qty.quantity,
-      }));
-
-      return toInventoryItem(item, quantities);
+      // Fetch with joins to get reference data
+      return this.findById(inventoryItemId, companyId) as Promise<InventoryItem>;
     }
 
     // Get current quantity for the receiving location
@@ -806,7 +1046,7 @@ export class InventoryService {
           (currentQuantity + receivedQuantity);
 
     // Update cost for this item (single product row)
-    const updated = await db
+    await db
       .updateTable("inventory_items")
       .set({
         cost_price: newCost,
@@ -814,22 +1054,10 @@ export class InventoryService {
       })
       .where("id", "=", inventoryItemId)
       .where("company_id", "=", companyId)
-      .returningAll()
-      .executeTakeFirstOrThrow();
-
-    // Get all location quantities for return
-    const locationQuantities = await db
-      .selectFrom("inventory_location_quantities")
-      .select(["location_id", "quantity"])
-      .where("inventory_item_id", "=", inventoryItemId)
       .execute();
 
-    const quantities: LocationQuantity[] = locationQuantities.map((qty) => ({
-      locationId: qty.location_id as string,
-      quantity: qty.quantity,
-    }));
-
-    return toInventoryItem(updated, quantities);
+    // Fetch with joins to get reference data
+    return this.findById(inventoryItemId, companyId) as Promise<InventoryItem>;
   }
 }
 
