@@ -1,0 +1,2 @@
+- Never use emojis or emoticons in documentation or planning.
+- Always generate MD files in the .logs dir unless told otherwise
